@@ -55,6 +55,30 @@ assert any(r > 0.3 for r in rels), "no hour/frequency produced a plausible non-t
 print(f"OK: {len(hours)} hours, {len(rels)} REL samples, max REL={max(rels):.2f}")
 EOF
 
+echo "== Test 1b: antenna choice actually changes the predicted result =="
+# Regression check for the antenna-gain bug: voacapl's ANTCALC subroutine
+# reads the propagation-input filename into a FORTRAN CHARACTER*20 dummy
+# argument, which silently truncates a longer name; the resulting failed
+# OPEN made ANTCALC skip regenerating the antenna gain tables entirely, so
+# swapping antennas had no effect on REL/SNR. Run the same circuit with an
+# isotrope antenna vs. a 17 dBi gain antenna and confirm the SNR actually
+# differs (a pure-Python unit test covering the underlying filename-length
+# fix lives in tests/test_voacap_predict.py).
+ISO_SNR=$(python3 "$PREDICT" \
+    --tx-name "London" --tx-lat 51.5 --tx-lon -0.13 \
+    --rx-name "New York" --rx-lat 40.7 --rx-lon -74.0 \
+    --month 9 --ssn 60 --freqs 14.2 --hours 20 20 \
+    --tx-antenna default/isotrope --json | python3 -c \
+    "import json,sys; print(json.load(sys.stdin)['hours'][0]['freqs'][0]['snr_db'])")
+GAIN_SNR=$(python3 "$PREDICT" \
+    --tx-name "London" --tx-lat 51.5 --tx-lon -0.13 \
+    --rx-name "New York" --rx-lat 40.7 --rx-lon -74.0 \
+    --month 9 --ssn 60 --freqs 14.2 --hours 20 20 \
+    --tx-antenna default/const17.voa --json | python3 -c \
+    "import json,sys; print(json.load(sys.stdin)['hours'][0]['freqs'][0]['snr_db'])")
+[ "$ISO_SNR" != "$GAIN_SNR" ] || fail "SNR was identical ($ISO_SNR dB) for isotrope vs. a 17 dBi antenna -- antenna choice is being ignored (regression of the ANTCALC filename-truncation bug)"
+echo "OK: isotrope SNR=$ISO_SNR dB, const17 SNR=$GAIN_SNR dB (differ as expected)"
+
 echo "== Test 2: antipodal-ish long path (Sydney -> Cape Town) still runs cleanly =="
 python3 "$PREDICT" \
     --tx-name "Sydney" --tx-lat -33.87 --tx-lon 151.2 \

@@ -17,6 +17,30 @@ import shutil
 import subprocess
 import sys
 import time
+import uuid
+
+
+# voacapl's ANTCALC subroutine (src/voacapw/antcalc.for) reads the
+# propagation-input filename it's given into a FORTRAN CHARACTER*20 dummy
+# argument. FORTRAN silently truncates an over-length actual argument to
+# fit the dummy's declared length rather than raising an error, so a
+# longer filename makes ANTCALC's OPEN(status='old') look for a file that
+# doesn't exist. ANTCALC then prints a warning to stdout (which nothing
+# checks) and returns without regenerating the antenna gain tables
+# (gainNN.dat) for the run -- silently leaving antenna choice (ANTENNA
+# card) with no effect, since the rest of the run just reads whatever
+# gainNN.dat happens to already be on disk. See the "generate_run_tag"
+# docstring below and the accompanying unit test in tests/.
+ANTCALC_FILENAME_LIMIT = 20
+
+
+def generate_run_tag():
+    """A short, unique tag for this run's input/output filenames.
+
+    Must be short enough that f"{tag}.dat"/f"{tag}.out" stay within
+    ANTCALC_FILENAME_LIMIT chars -- see the module-level comment above.
+    """
+    return "v" + uuid.uuid4().hex[:12]
 
 
 def f(width, decimals, value):
@@ -267,9 +291,21 @@ def main():
               f"Has 'makeitshfbc' been run to set up {itshfbc}?", file=sys.stderr)
         return 1
 
-    tag = f"skill_{os.getpid()}_{int(time.time())}"
+    tag = generate_run_tag()
     input_file = args.input_file or f"{tag}.dat"
     output_file = args.output_file or f"{tag}.out"
+
+    # A caller-supplied --input-file isn't covered by generate_run_tag()'s
+    # own length budget -- guard it explicitly so an over-length name fails
+    # loudly here instead of silently disabling antenna gain (see
+    # ANTCALC_FILENAME_LIMIT above).
+    if args.input_file and len(args.input_file) > ANTCALC_FILENAME_LIMIT:
+        print(f"error: --input-file {args.input_file!r} is longer than "
+              f"{ANTCALC_FILENAME_LIMIT} characters; voacapl's ANTCALC "
+              "subroutine silently truncates and mis-opens longer names, "
+              "which disables antenna gain for the run. Use a shorter name.",
+              file=sys.stderr)
+        return 1
 
     input_path = os.path.join(run_dir, input_file)
     output_path = os.path.join(run_dir, output_file)
