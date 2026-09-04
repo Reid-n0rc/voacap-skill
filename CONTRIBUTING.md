@@ -5,6 +5,9 @@
 - `main` is protected: it only changes via pull request, and a PR can only
   merge once the CI workflow (build voacapl + run the skill's smoke tests)
   passes.
+- `run_tests.sh` covers the skill's own prediction script plus every
+  documented `voacapl` CLI form (`-v`, default and explicit in/out files,
+  `--run-dir`, all `--absorption-mode` values, `area calc`, and `batch`).
 - The skill always builds against the **latest GitHub release** of
   [jawatson/voacapl](https://github.com/jawatson/voacapl), not a specific
   commit — `setup.sh` resolves "latest" at run time. Pass `--release <tag>`
