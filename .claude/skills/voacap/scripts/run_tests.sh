@@ -1,14 +1,40 @@
 #!/bin/sh
-# Smoke-tests the skill against whatever voacapl build setup.sh last produced.
-# Intended to run after setup.sh, in CI and locally. Exits non-zero on failure.
+# Smoke-tests the skill and the underlying voacapl CLI against whatever
+# build setup.sh last produced. Intended to run after setup.sh, in CI and
+# locally. Exits non-zero on failure.
+#
+# Covers:
+#   - the skill's own prediction script (voacap_predict.py)
+#   - every voacapl CLI form documented in its man page:
+#       voacapl -v
+#       voacapl <itshfbc>                          (default in/out files)
+#       voacapl <itshfbc> <infile> <outfile>        (explicit in/out files)
+#       voacapl --run-dir=<dir> <itshfbc> ...        (run-dir override)
+#       voacapl --absorption-mode=<mode> <itshfbc> ... (absorption mode)
+#       voacapl <itshfbc> area calc <areafile>       (area calculation)
+#       voacapl <itshfbc> batch                      (batch circuits)
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 PREDICT="$SCRIPT_DIR/voacap_predict.py"
 
 fail() {
     echo "TEST FAILED: $1" >&2
     exit 1
+}
+
+VOACAPL_BIN="$(command -v voacapl || true)"
+if [ -z "$VOACAPL_BIN" ] && [ -x "$REPO_ROOT/local/bin/voacapl" ]; then
+    VOACAPL_BIN="$REPO_ROOT/local/bin/voacapl"
+fi
+[ -n "$VOACAPL_BIN" ] || fail "could not find the voacapl binary"
+
+ITSHFBC="${VOACAP_ITSHFBC:-$HOME/itshfbc}"
+[ -d "$ITSHFBC/run" ] || fail "run directory not found: $ITSHFBC/run (has makeitshfbc been run?)"
+
+require_end_of_run() {
+    grep -q "END OF RUN" "$1" || fail "$1 is missing the expected END OF RUN marker"
 }
 
 echo "== Test 1: London -> New York, basic run produces a parseable, sane result =="
@@ -44,4 +70,52 @@ python3 "$PREDICT" \
     --freqs 3.5 5.3 7.1 9.4 12.1 15.2 18.1 21.2 24.9 28.3 29.7 --json > /dev/null \
     || fail "11-frequency prediction did not complete"
 
-echo "All voacap skill smoke tests passed."
+echo "== Test 4: voacapl -v prints a version =="
+"$VOACAPL_BIN" -v 2>&1 | grep -qi "release\|version" \
+    || fail "voacapl -v did not print a version string"
+
+echo "== Test 5: voacapl <itshfbc> (default input/output files) =="
+"$VOACAPL_BIN" -s "$ITSHFBC" || fail "default-args invocation failed"
+require_end_of_run "$ITSHFBC/run/voacapx.out"
+
+echo "== Test 6: voacapl <itshfbc> <infile> <outfile> (explicit filenames) =="
+cp "$ITSHFBC/run/voacapx.dat" "$ITSHFBC/run/cli_test_in.dat"
+"$VOACAPL_BIN" -s "$ITSHFBC" cli_test_in.dat cli_test_out.out \
+    || fail "explicit in/out filenames invocation failed"
+require_end_of_run "$ITSHFBC/run/cli_test_out.out"
+rm -f "$ITSHFBC/run/cli_test_in.dat" "$ITSHFBC/run/cli_test_out.out"
+
+echo "== Test 7: voacapl --run-dir=<dir> ... =="
+RUNDIR=$(mktemp -d)
+cp "$ITSHFBC/run/voacapx.dat" "$RUNDIR/rundir_test.dat"
+"$VOACAPL_BIN" -s "--run-dir=$RUNDIR" "$ITSHFBC" rundir_test.dat rundir_test.out \
+    || { rm -rf "$RUNDIR"; fail "--run-dir invocation failed"; }
+require_end_of_run "$RUNDIR/rundir_test.out"
+rm -rf "$RUNDIR"
+
+echo "== Test 8: voacapl --absorption-mode=<mode> ... =="
+for MODE in W I A a; do
+    cp "$ITSHFBC/run/voacapx.dat" "$ITSHFBC/run/absorb_test.dat"
+    "$VOACAPL_BIN" -s "--absorption-mode=$MODE" "$ITSHFBC" absorb_test.dat absorb_test.out \
+        || fail "--absorption-mode=$MODE invocation failed"
+    require_end_of_run "$ITSHFBC/run/absorb_test.out"
+    rm -f "$ITSHFBC/run/absorb_test.dat" "$ITSHFBC/run/absorb_test.out"
+done
+
+echo "== Test 9: voacapl <itshfbc> area calc <areafile> =="
+rm -f "$ITSHFBC/areadata/default/default.vg1"
+"$VOACAPL_BIN" -s "$ITSHFBC" area calc default/default.voa \
+    || fail "area calc invocation failed"
+[ -f "$ITSHFBC/areadata/default/default.vg1" ] \
+    || fail "area calc did not produce the expected default.vg1 output"
+rm -f "$ITSHFBC/areadata/default/default.vg1"
+
+echo "== Test 10: voacapl <itshfbc> batch =="
+BATCH_LOG=$(mktemp)
+"$VOACAPL_BIN" -s "$ITSHFBC" batch > "$BATCH_LOG" 2>&1 \
+    || { cat "$BATCH_LOG"; rm -f "$BATCH_LOG"; fail "batch invocation failed"; }
+grep -q "Batch processing for VOACAP is complete" "$BATCH_LOG" \
+    || { cat "$BATCH_LOG"; rm -f "$BATCH_LOG"; fail "batch run did not report completion"; }
+rm -f "$BATCH_LOG"
+
+echo "All voacap skill and voacapl CLI smoke tests passed."

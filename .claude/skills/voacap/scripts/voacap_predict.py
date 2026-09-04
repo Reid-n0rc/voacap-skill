@@ -279,7 +279,7 @@ def main():
     with open(input_path, "w") as fh:
         fh.write(build_input(args))
 
-    cmd = [voacapl_bin, "--silent"]
+    cmd = [voacapl_bin, "-s"]
     if args.run_dir:
         cmd.append(f"--run-dir={run_dir}")
     if args.absorption_mode:
