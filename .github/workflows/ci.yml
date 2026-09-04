@@ -94,7 +94,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gfortran automake autoconf
+          sudo apt-get install -y gfortran automake autoconf libtool m4 pkg-config
 
       - name: Resolve voacapl version
         id: voacapl
@@ -114,15 +114,16 @@ jobs:
         run: .claude/skills/voacap/scripts/setup.sh --release "$VOACAPL_TAG"
 
       - name: Run smoke tests
+        env:
+          VOACAP_ITSHFBC: ${{ home }}/itshfbc
         run: .claude/skills/voacap/scripts/run_tests.sh
 
       - name: Run extended integration tests
-        env:
-          VOACAP_ITSHFBC: ${{ env.HOME }}/itshfbc
         run: |
           set -e
           echo "=== Extended Integration Tests ==="
           SCRIPT_DIR=".claude/skills/voacap/scripts"
+          ITSHFBC="$HOME/itshfbc"
           
           # Test with different parameters
           echo "Testing different SSN values..."
