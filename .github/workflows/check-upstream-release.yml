@@ -92,13 +92,16 @@ jobs:
           LATEST_TAG: ${{ steps.latest.outputs.tag }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          {
+            echo "The daily upstream-release check found that the skill's smoke tests fail against the new jawatson/voacapl release \`$LATEST_TAG\`."
+            echo
+            echo "Run: $RUN_URL"
+            echo
+            echo "Next steps: inspect the failing job log above, and check the [voacapl changelog](https://github.com/jawatson/voacapl/blob/master/ChangeLog.md) and release notes for changes that might affect the input/output format this skill depends on (see .claude/skills/voacap/scripts/voacap_predict.py)."
+          } > /tmp/issue-body.md
           gh issue create \
             --repo "$GITHUB_REPOSITORY" \
             --title "voacap-skill fails against voacapl $LATEST_TAG" \
             --assignee "$ISSUE_ASSIGNEE" \
             --label upstream-regression \
-            --body "The daily upstream-release check found that the skill's smoke tests fail against the new jawatson/voacapl release \`$LATEST_TAG\`.
-
-Run: $RUN_URL
-
-Next steps: inspect the failing job log above, and check the [voacapl changelog](https://github.com/jawatson/voacapl/blob/master/ChangeLog.md) and release notes for changes that might affect the input/output format this skill depends on (see .claude/skills/voacap/scripts/voacap_predict.py)."
+            --body-file /tmp/issue-body.md
