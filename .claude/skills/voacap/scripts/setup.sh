@@ -67,6 +67,14 @@ if [ ! -x "$REPO_ROOT/local/bin/voacapl" ]; then
     # the maintainer last used, which commonly mismatches the automake/
     # autoconf installed here and causes spurious "missing aclocal-X.Y"
     # rebuild failures.
+    command -v autoreconf >/dev/null 2>&1 || {
+        cat >&2 <<'MSG'
+error: autoreconf not found. Install autoconf/automake and supporting tools:
+  Debian/Ubuntu: sudo apt-get install -y autoconf automake libtool m4 pkg-config
+  macOS (Homebrew): brew install autoconf automake libtool pkg-config
+MSG
+        exit 1
+    }
     automake --add-missing || true
     autoreconf -fi
     ./configure --prefix="$REPO_ROOT/local"

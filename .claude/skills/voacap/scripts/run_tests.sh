@@ -112,6 +112,14 @@ rm -f "$ITSHFBC/areadata/default/default.vg1"
 
 echo "== Test 10: voacapl <itshfbc> batch =="
 echo "(voacapl=$VOACAPL_BIN itshfbc=$ITSHFBC)"
+
+TIMEOUT_CMD=""
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_CMD="timeout ${VOACAPL_BATCH_TIMEOUT:-120}s"
+elif command -v gtimeout >/dev/null 2>&1; then
+    TIMEOUT_CMD="gtimeout ${VOACAPL_BATCH_TIMEOUT:-120}s"
+fi
+
 BATCH_LOG=$(mktemp)
 BATCH_OK=0
 for ATTEMPT in 1 2; do
@@ -127,9 +135,14 @@ for ATTEMPT in 1 2; do
     # in some environments, misrouting into the "special batch" code path
     # (which then fails to open a bogus deck file) instead of plain batch.
     # Passing an explicit empty argument makes that read well-defined.
-    "$VOACAPL_BIN" "$ITSHFBC" batch "" > "$BATCH_LOG" 2>&1
+    $TIMEOUT_CMD "$VOACAPL_BIN" "$ITSHFBC" batch "" > "$BATCH_LOG" 2>&1
     BATCH_RC=$?
     set -e
+    if [ -n "$TIMEOUT_CMD" ] && [ "$BATCH_RC" -eq 124 ]; then
+        echo "(attempt $ATTEMPT: batch timed out after ${VOACAPL_BATCH_TIMEOUT:-120}s)"
+        cat "$BATCH_LOG"
+        continue
+    fi
     echo "(attempt $ATTEMPT: batch exit=$BATCH_RC, $(wc -l < "$BATCH_LOG" | tr -d ' ') lines of output)"
     if [ "$BATCH_RC" -eq 0 ] && grep -q "Batch processing for VOACAP is complete" "$BATCH_LOG"; then
         BATCH_OK=1
