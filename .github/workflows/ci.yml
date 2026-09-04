@@ -20,6 +20,8 @@ jobs:
           sudo apt-get install -y gfortran automake autoconf
 
       - name: Build the latest jawatson/voacapl release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: .claude/skills/voacap/scripts/setup.sh
 
       - name: Run skill smoke tests
