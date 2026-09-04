@@ -62,10 +62,13 @@ if [ ! -x "$REPO_ROOT/local/bin/voacapl" ]; then
         exit 1
     }
     cd "$VENDOR_DIR"
-    if [ ! -x ./configure ]; then
-        automake --add-missing || true
-        autoreconf -fi
-    fi
+    # Always regenerate the build system: the release tarball's checked-in
+    # configure/Makefile.in were generated with whatever autotools version
+    # the maintainer last used, which commonly mismatches the automake/
+    # autoconf installed here and causes spurious "missing aclocal-X.Y"
+    # rebuild failures.
+    automake --add-missing || true
+    autoreconf -fi
     ./configure --prefix="$REPO_ROOT/local"
     # Serial build: some subdirectories (anttyp99) have undeclared intra-directory
     # module dependencies that break under parallel make.
