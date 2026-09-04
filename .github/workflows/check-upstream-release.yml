@@ -1,0 +1,107 @@
+name: Check upstream voacapl release
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  issues: write
+
+env:
+  UPSTREAM: jawatson/voacapl
+  ISSUE_ASSIGNEE: Reid-n0rc
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Get latest upstream release
+        id: latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=$(gh api "repos/$UPSTREAM/releases/latest" --jq .tag_name)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Get last tested release
+        id: last
+        run: |
+          if git ls-remote --exit-code --heads origin bot-state >/dev/null 2>&1; then
+            git fetch origin bot-state:refs/remotes/origin/bot-state
+            LAST=$(git show origin/bot-state:last-tested-release.txt 2>/dev/null || echo "")
+          else
+            LAST=""
+          fi
+          echo "tag=$LAST" >> "$GITHUB_OUTPUT"
+
+      - name: Decide whether to run
+        id: gate
+        env:
+          LATEST_TAG: ${{ steps.latest.outputs.tag }}
+          LAST_TAG: ${{ steps.last.outputs.tag }}
+        run: |
+          if [ "$LATEST_TAG" = "$LAST_TAG" ]; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+            echo "No new release ($LATEST_TAG already tested)."
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+            echo "New release detected: $LATEST_TAG (previously tested: ${LAST_TAG:-none})"
+          fi
+
+      - name: Install build dependencies
+        if: steps.gate.outputs.new == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gfortran automake autoconf
+
+      - name: Build & test against the new release
+        if: steps.gate.outputs.new == 'true'
+        id: test
+        continue-on-error: true
+        env:
+          LATEST_TAG: ${{ steps.latest.outputs.tag }}
+        run: |
+          .claude/skills/voacap/scripts/setup.sh --release "$LATEST_TAG"
+          .claude/skills/voacap/scripts/run_tests.sh
+
+      - name: Record tested release
+        if: steps.gate.outputs.new == 'true'
+        env:
+          LATEST_TAG: ${{ steps.latest.outputs.tag }}
+        run: |
+          git config user.name "voacap-skill-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout --orphan bot-state-new
+          git rm -rf . >/dev/null 2>&1 || true
+          echo "$LATEST_TAG" > last-tested-release.txt
+          git add last-tested-release.txt
+          git commit -m "Record tested release $LATEST_TAG"
+          git push origin bot-state-new:bot-state --force
+
+      - name: File issue on failure
+        if: steps.gate.outputs.new == 'true' && steps.test.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LATEST_TAG: ${{ steps.latest.outputs.tag }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo "The daily upstream-release check found that the skill's smoke tests fail against the new jawatson/voacapl release \`$LATEST_TAG\`."
+            echo
+            echo "Run: $RUN_URL"
+            echo
+            echo "Next steps: inspect the failing job log above, and check the [voacapl changelog](https://github.com/jawatson/voacapl/blob/master/ChangeLog.md) and release notes for changes that might affect the input/output format this skill depends on (see .claude/skills/voacap/scripts/voacap_predict.py)."
+          } > /tmp/issue-body.md
+          gh issue create \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "voacap-skill fails against voacapl $LATEST_TAG" \
+            --assignee "$ISSUE_ASSIGNEE" \
+            --label upstream-regression \
+            --body-file /tmp/issue-body.md

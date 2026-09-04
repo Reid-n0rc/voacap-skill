@@ -22,3 +22,10 @@ python3 .claude/skills/voacap/scripts/voacap_predict.py \
 ```
 
 Requires `git`, `gfortran`, `automake`, and `autoreconf`.
+
+## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md): work happens on `dev`/feature
+branches, `main` is PR-only and CI-gated, and the skill tracks the latest
+`jawatson/voacapl` release (checked daily; see
+`.github/workflows/check-upstream-release.yml`).

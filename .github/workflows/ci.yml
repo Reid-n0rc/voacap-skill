@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Build voacapl and run skill smoke tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gfortran automake autoconf
+
+      # GH_TOKEN is scoped to this lookup step only, so it is never present
+      # in the environment while untrusted upstream source is compiled/run.
+      - name: Resolve latest voacapl release
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=$(gh api repos/jawatson/voacapl/releases/latest --jq .tag_name)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Build voacapl
+        env:
+          LATEST_TAG: ${{ steps.latest.outputs.tag }}
+        run: .claude/skills/voacap/scripts/setup.sh --release "$LATEST_TAG"
+
+      - name: Run skill smoke tests
+        run: .claude/skills/voacap/scripts/run_tests.sh
