@@ -21,7 +21,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
 
       - name: Install linting tools
         run: |
@@ -44,18 +43,15 @@ jobs:
         run: mypy .claude/skills/voacap/scripts/ --ignore-missing-imports --no-error-summary || true
 
   unit-tests:
-    name: Python unit tests (Python ${{ matrix.python-version }})
+    name: Python unit tests
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.11"]
     steps:
       - uses: actions/checkout@v5
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.11"
 
       - name: Install test dependencies
         run: |
@@ -75,7 +71,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Set up Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
