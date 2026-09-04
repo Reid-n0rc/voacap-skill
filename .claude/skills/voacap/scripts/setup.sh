@@ -1,20 +1,58 @@
 #!/bin/sh
-# Clones and builds jawatson/voacapl (if needed) and sets up ~/itshfbc (if needed).
-# Safe to re-run; each step is skipped if already done.
+# Clones and builds a release of jawatson/voacapl (if needed) and sets up
+# ~/itshfbc (if needed). Safe to re-run; each step is skipped if already done
+# for the requested release. Re-run after a new upstream release to rebuild
+# against it (pass --release <tag> to pin a specific one; default is the
+# latest GitHub release).
+#
+# Usage: setup.sh [--release <tag>|latest]
 set -e
 
 UPSTREAM_REPO="https://github.com/jawatson/voacapl.git"
+UPSTREAM_OWNER_REPO="jawatson/voacapl"
 REPO_ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 VENDOR_DIR="$REPO_ROOT/vendor/voacapl"
+MARKER="$REPO_ROOT/local/.voacapl-release"
+
+RELEASE="latest"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --release) RELEASE="$2"; shift 2 ;;
+        --release=*) RELEASE="${1#--release=}"; shift ;;
+        *) echo "unknown argument: $1" >&2; exit 1 ;;
+    esac
+done
+
 cd "$REPO_ROOT"
 
-if ! command -v voacapl >/dev/null 2>&1 && [ ! -x "$REPO_ROOT/local/bin/voacapl" ]; then
-    if [ ! -d "$VENDOR_DIR" ]; then
-        echo "Cloning $UPSTREAM_REPO ..."
-        mkdir -p "$REPO_ROOT/vendor"
-        git clone --depth 1 "$UPSTREAM_REPO" "$VENDOR_DIR"
+if [ "$RELEASE" = "latest" ]; then
+    echo "Looking up latest $UPSTREAM_OWNER_REPO release..."
+    if command -v gh >/dev/null 2>&1; then
+        RELEASE=$(gh api "repos/$UPSTREAM_OWNER_REPO/releases/latest" --jq .tag_name)
     else
-        echo "vendor/voacapl already cloned."
+        RELEASE=$(curl -fsSL "https://api.github.com/repos/$UPSTREAM_OWNER_REPO/releases/latest" \
+            | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
+    fi
+    if [ -z "$RELEASE" ]; then
+        echo "error: could not determine the latest release tag" >&2
+        exit 1
+    fi
+fi
+echo "Target release: $RELEASE"
+
+CURRENT=""
+[ -f "$MARKER" ] && CURRENT="$(cat "$MARKER")"
+
+if [ "$CURRENT" != "$RELEASE" ]; then
+    echo "No confirmed build of release $RELEASE (previous marker: ${CURRENT:-none}); (re)building..."
+    rm -rf "$VENDOR_DIR" "$REPO_ROOT/local"
+fi
+
+if [ ! -x "$REPO_ROOT/local/bin/voacapl" ]; then
+    if [ ! -d "$VENDOR_DIR" ]; then
+        echo "Cloning $UPSTREAM_REPO @ $RELEASE ..."
+        mkdir -p "$REPO_ROOT/vendor"
+        git clone --depth 1 --branch "$RELEASE" "$UPSTREAM_REPO" "$VENDOR_DIR"
     fi
 
     echo "Building voacapl..."
@@ -34,8 +72,10 @@ if ! command -v voacapl >/dev/null 2>&1 && [ ! -x "$REPO_ROOT/local/bin/voacapl"
     make
     make install
     cd "$REPO_ROOT"
+    mkdir -p "$REPO_ROOT/local"
+    echo "$RELEASE" > "$MARKER"
 else
-    echo "voacapl already built."
+    echo "voacapl already built (release $CURRENT)."
 fi
 
 BIN_DIR="$REPO_ROOT/local/bin"
@@ -50,3 +90,4 @@ fi
 
 echo "Done. voacapl binary: $(command -v voacapl)"
 echo "itshfbc data directory: $HOME/itshfbc"
+echo "voacapl release: $RELEASE"

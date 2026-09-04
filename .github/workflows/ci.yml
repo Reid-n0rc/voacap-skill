@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    name: Build voacapl and run skill smoke tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gfortran automake autoconf
+
+      - name: Build the latest jawatson/voacapl release
+        run: .claude/skills/voacap/scripts/setup.sh
+
+      - name: Run skill smoke tests
+        run: .claude/skills/voacap/scripts/run_tests.sh
