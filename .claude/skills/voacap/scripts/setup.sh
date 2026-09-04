@@ -25,6 +25,16 @@ if ! command -v voacapl >/dev/null 2>&1 && [ ! -x "$REPO_ROOT/local/bin/voacapl"
     }
     cd "$VENDOR_DIR"
     if [ ! -x ./configure ]; then
+        # Ensure autoreconf is available before trying to regenerate autotools.
+        if ! command -v autoreconf >/dev/null 2>&1; then
+          cat >&2 <<'EOF'
+error: autoreconf not found. To regenerate the build system you need autoconf/automake and supporting tools.
+On Debian/Ubuntu: sudo apt-get install -y autoconf automake libtool m4 pkg-config
+On macOS (homebrew): brew install autoconf automake libtool pkg-config
+EOF
+          exit 1
+        fi
+
         automake --add-missing || true
         autoreconf -fi
     fi
