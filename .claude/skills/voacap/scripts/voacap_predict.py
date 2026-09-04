@@ -69,7 +69,7 @@ def build_input(args):
     lines.append("TIME      " + i(5, hr1) + i(5, hr2) + i(5, 1) + i(5, iflag))
 
     lines.append("MONTH     " + i(5, args.year) + f(5, 2, args.month + args.day_fraction))
-    lines.append("SUNSPOT   " + f(5, 0, args.ssn))
+    lines.append("SUNSPOT   " + f(5, 1, args.ssn))
 
     tx_name = args.tx_name[:20].ljust(20)
     rx_name = args.rx_name[:20].ljust(20)
@@ -140,7 +140,8 @@ def parse_output(text):
     while idx < n:
         data, label = split_data_label(lines[idx])
         if label == "FREQ" and len(data) >= 3:
-            hour, lmt = data[0], data[1]
+            hour, muf = data[0], data[1]
+            # Data rows are [MUF, f1..fN]; user frequencies start at column 1.
             freqs = [float(v) for v in data[2:13]]
             rows = {}
             j = idx + 1
@@ -156,10 +157,11 @@ def parse_output(text):
 
                 def val(label_name, cast=float):
                     row = rows.get(label_name)
-                    if row is None or k >= len(row) or row[k] == "-":
+                    col = k + 1
+                    if row is None or col >= len(row) or row[col] == "-":
                         return None
                     try:
-                        return cast(row[k])
+                        return cast(row[col])
                     except ValueError:
                         return None
 
@@ -172,7 +174,7 @@ def parse_output(text):
                     "loss_db": val("LOSS"),
                     "s_dbw": val("S DBW"),
                 })
-            blocks.append({"gmt": float(hour), "lmt": float(lmt), "freqs": entries})
+            blocks.append({"hour": float(hour), "muf_mhz": float(muf), "freqs": entries})
             idx = j
         else:
             idx += 1
@@ -328,7 +330,7 @@ def main():
             if e["rel"] is not None and e["snr_db"] is not None else f"{e['freq_mhz']:.2f}=-"
             for e in block["freqs"]
         )
-        hour_label = block["lmt"] if args.lmt else block["gmt"]
+        hour_label = block["hour"]
         if best:
             print(f"{hour_label:5.1f} {best['freq_mhz']:9.2f} {best['rel']:5.2f} "
                   f"{best['snr_db']:7.0f}   {detail}")
