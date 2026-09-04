@@ -119,7 +119,15 @@ for ATTEMPT in 1 2; do
     # Deliberately not passing -s here: -s appears to suppress *all* of
     # batch mode's stdout (including the final completion message) in some
     # environments, which would make this check unreliable.
-    "$VOACAPL_BIN" "$ITSHFBC" batch > "$BATCH_LOG" 2>&1
+    #
+    # The trailing "" is a workaround: plain "batch" with no further argv
+    # leaves voacapw.for reading one argument index past the end (it always
+    # probes for an optional "special batch deck" filename via
+    # get_command_argument, unchecked). That appears to read as non-blank
+    # in some environments, misrouting into the "special batch" code path
+    # (which then fails to open a bogus deck file) instead of plain batch.
+    # Passing an explicit empty argument makes that read well-defined.
+    "$VOACAPL_BIN" "$ITSHFBC" batch "" > "$BATCH_LOG" 2>&1
     BATCH_RC=$?
     set -e
     echo "(attempt $ATTEMPT: batch exit=$BATCH_RC, $(wc -l < "$BATCH_LOG" | tr -d ' ') lines of output)"
