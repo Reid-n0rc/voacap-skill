@@ -91,6 +91,17 @@ else
     echo "\$HOME/itshfbc already set up."
 fi
 
+# voacap.cir/voacapw.asc ship with CRLF line endings. gfortran's fixed-column
+# formatted reads of voacap.cir (used by 'batch' mode) mis-parse the trailing
+# \r on Linux, causing batch mode to silently process zero circuits. Safe to
+# normalize on any platform.
+for f in "$HOME/itshfbc/run/voacap.cir" "$HOME/itshfbc/run/voacapw.asc"; do
+    if [ -f "$f" ]; then
+        sed -i.bak 's/\r$//' "$f"
+        rm -f "$f.bak"
+    fi
+done
+
 echo "Done. voacapl binary: $(command -v voacapl)"
 echo "itshfbc data directory: $HOME/itshfbc"
 echo "voacapl release: $RELEASE"

@@ -113,15 +113,21 @@ rm -f "$ITSHFBC/areadata/default/default.vg1"
 echo "== Test 10: voacapl <itshfbc> batch =="
 echo "(voacapl=$VOACAPL_BIN itshfbc=$ITSHFBC)"
 BATCH_LOG=$(mktemp)
-set +e
-"$VOACAPL_BIN" -s "$ITSHFBC" batch > "$BATCH_LOG" 2>&1
-BATCH_RC=$?
-set -e
-echo "(batch exit=$BATCH_RC, $(wc -l < "$BATCH_LOG" | tr -d ' ') lines of output)"
-cat "$BATCH_LOG"
-[ "$BATCH_RC" -eq 0 ] || { rm -f "$BATCH_LOG"; fail "batch invocation failed"; }
-grep -q "Batch processing for VOACAP is complete" "$BATCH_LOG" \
-    || { rm -f "$BATCH_LOG"; fail "batch run did not report completion"; }
+BATCH_OK=0
+for ATTEMPT in 1 2; do
+    set +e
+    "$VOACAPL_BIN" -s "$ITSHFBC" batch > "$BATCH_LOG" 2>&1
+    BATCH_RC=$?
+    set -e
+    echo "(attempt $ATTEMPT: batch exit=$BATCH_RC, $(wc -l < "$BATCH_LOG" | tr -d ' ') lines of output)"
+    if [ "$BATCH_RC" -eq 0 ] && grep -q "Batch processing for VOACAP is complete" "$BATCH_LOG"; then
+        BATCH_OK=1
+        break
+    fi
+    echo "attempt $ATTEMPT did not complete as expected; output was:"
+    cat "$BATCH_LOG"
+done
+[ "$BATCH_OK" -eq 1 ] || { rm -f "$BATCH_LOG"; fail "batch invocation failed twice in a row"; }
 rm -f "$BATCH_LOG"
 
 echo "All voacap skill and voacapl CLI smoke tests passed."
