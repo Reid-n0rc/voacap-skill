@@ -116,7 +116,10 @@ BATCH_LOG=$(mktemp)
 BATCH_OK=0
 for ATTEMPT in 1 2; do
     set +e
-    "$VOACAPL_BIN" -s "$ITSHFBC" batch > "$BATCH_LOG" 2>&1
+    # Deliberately not passing -s here: -s appears to suppress *all* of
+    # batch mode's stdout (including the final completion message) in some
+    # environments, which would make this check unreliable.
+    "$VOACAPL_BIN" "$ITSHFBC" batch > "$BATCH_LOG" 2>&1
     BATCH_RC=$?
     set -e
     echo "(attempt $ATTEMPT: batch exit=$BATCH_RC, $(wc -l < "$BATCH_LOG" | tr -d ' ') lines of output)"
