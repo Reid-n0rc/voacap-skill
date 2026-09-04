@@ -33,6 +33,18 @@ import uuid
 # docstring below and the accompanying unit test in tests/.
 ANTCALC_FILENAME_LIMIT = 20
 
+# The --itshfbc path (and --run-dir, if given) is passed straight through to
+# voacapl and assigned into the crun_directory module's root_directory /
+# run_directory buffers:
+#   vendor/voacapl/src/modules/crun_directory.f95
+#       integer, parameter :: VOA_PATH_LEN = 128
+#       character(len=VOA_PATH_LEN) :: root_directory
+#       character(len=VOA_PATH_LEN) :: run_directory
+# As with ANTCALC_FILENAME_LIMIT above, FORTRAN silently truncates an
+# over-length actual argument instead of raising an error, so a path longer
+# than this would get silently truncated to one that likely doesn't exist.
+VOACAPL_ROOT_DIRECTORY_LIMIT = 128
+
 
 def generate_run_tag():
     """A short, unique tag for this run's input/output filenames.
@@ -286,6 +298,22 @@ def main():
 
     itshfbc = os.path.expanduser(args.itshfbc)
     run_dir = os.path.expanduser(args.run_dir) if args.run_dir else os.path.join(itshfbc, "run")
+
+    if len(itshfbc) > VOACAPL_ROOT_DIRECTORY_LIMIT:
+        print(f"error: --itshfbc path {itshfbc!r} is longer than "
+              f"{VOACAPL_ROOT_DIRECTORY_LIMIT} characters; voacapl silently "
+              "truncates longer root directory paths (see "
+              "VOACAPL_ROOT_DIRECTORY_LIMIT above). Use a shorter path.",
+              file=sys.stderr)
+        return 1
+    if args.run_dir and len(run_dir) > VOACAPL_ROOT_DIRECTORY_LIMIT:
+        print(f"error: --run-dir path {run_dir!r} is longer than "
+              f"{VOACAPL_ROOT_DIRECTORY_LIMIT} characters; voacapl silently "
+              "truncates longer run directory paths (see "
+              "VOACAPL_ROOT_DIRECTORY_LIMIT above). Use a shorter path.",
+              file=sys.stderr)
+        return 1
+
     if not os.path.isdir(run_dir):
         print(f"error: run directory not found: {run_dir}\n"
               f"Has 'makeitshfbc' been run to set up {itshfbc}?", file=sys.stderr)
