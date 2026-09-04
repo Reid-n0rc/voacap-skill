@@ -99,16 +99,27 @@ else
     echo "\$HOME/itshfbc already set up."
 fi
 
-# voacap.cir/voacapw.asc ship with CRLF line endings. gfortran's fixed-column
-# formatted reads of voacap.cir (used by 'batch' mode) mis-parse the trailing
-# \r on Linux, causing batch mode to silently process zero circuits. Safe to
-# normalize on any platform.
+# voacap.cir/voacapw.asc ship with CRLF line endings. Harmless to normalize
+# on any platform, and cheap insurance against any fixed-column-read
+# sensitivity to the trailing \r.
 for f in "$HOME/itshfbc/run/voacap.cir" "$HOME/itshfbc/run/voacapw.asc"; do
     if [ -f "$f" ]; then
         sed -i.bak 's/\r$//' "$f"
         rm -f "$f.bak"
     fi
 done
+
+# 'batch' mode calls read_asc('VOACAP', ...), which opens the file
+# 'VOACAP' // 'w.asc' = "VOACAPw.asc" (mixed case) - but the file makeitshfbc
+# installs is "voacapw.asc" (all lowercase). That open silently fails and
+# read_asc takes its error return with zero diagnostic output, so batch mode
+# exits cleanly having processed nothing. This is a no-op on case-insensitive
+# filesystems (macOS default, Windows) but breaks deterministically on Linux.
+# Root-caused via a local Ubuntu 24.04 container reproduction + source
+# inspection of src/voacapw/read_asc.for and voacapw.for.
+if [ -f "$HOME/itshfbc/run/voacapw.asc" ] && [ ! -e "$HOME/itshfbc/run/VOACAPw.asc" ]; then
+    ln -s voacapw.asc "$HOME/itshfbc/run/VOACAPw.asc"
+fi
 
 echo "Done. voacapl binary: $(command -v voacapl)"
 echo "itshfbc data directory: $HOME/itshfbc"

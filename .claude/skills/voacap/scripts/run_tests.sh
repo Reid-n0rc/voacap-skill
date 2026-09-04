@@ -124,18 +124,7 @@ BATCH_LOG=$(mktemp)
 BATCH_OK=0
 for ATTEMPT in 1 2; do
     set +e
-    # Deliberately not passing -s here: -s appears to suppress *all* of
-    # batch mode's stdout (including the final completion message) in some
-    # environments, which would make this check unreliable.
-    #
-    # The trailing "" is a workaround: plain "batch" with no further argv
-    # leaves voacapw.for reading one argument index past the end (it always
-    # probes for an optional "special batch deck" filename via
-    # get_command_argument, unchecked). That appears to read as non-blank
-    # in some environments, misrouting into the "special batch" code path
-    # (which then fails to open a bogus deck file) instead of plain batch.
-    # Passing an explicit empty argument makes that read well-defined.
-    $TIMEOUT_CMD "$VOACAPL_BIN" "$ITSHFBC" batch "" > "$BATCH_LOG" 2>&1
+    $TIMEOUT_CMD "$VOACAPL_BIN" "$ITSHFBC" batch > "$BATCH_LOG" 2>&1
     BATCH_RC=$?
     set -e
     if [ -n "$TIMEOUT_CMD" ] && [ "$BATCH_RC" -eq 124 ]; then
