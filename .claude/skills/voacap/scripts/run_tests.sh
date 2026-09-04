@@ -111,11 +111,17 @@ rm -f "$ITSHFBC/areadata/default/default.vg1"
 rm -f "$ITSHFBC/areadata/default/default.vg1"
 
 echo "== Test 10: voacapl <itshfbc> batch =="
+echo "(voacapl=$VOACAPL_BIN itshfbc=$ITSHFBC)"
 BATCH_LOG=$(mktemp)
-"$VOACAPL_BIN" -s "$ITSHFBC" batch > "$BATCH_LOG" 2>&1 \
-    || { cat "$BATCH_LOG"; rm -f "$BATCH_LOG"; fail "batch invocation failed"; }
+set +e
+"$VOACAPL_BIN" -s "$ITSHFBC" batch > "$BATCH_LOG" 2>&1
+BATCH_RC=$?
+set -e
+echo "(batch exit=$BATCH_RC, $(wc -l < "$BATCH_LOG" | tr -d ' ') lines of output)"
+cat "$BATCH_LOG"
+[ "$BATCH_RC" -eq 0 ] || { rm -f "$BATCH_LOG"; fail "batch invocation failed"; }
 grep -q "Batch processing for VOACAP is complete" "$BATCH_LOG" \
-    || { cat "$BATCH_LOG"; rm -f "$BATCH_LOG"; fail "batch run did not report completion"; }
+    || { rm -f "$BATCH_LOG"; fail "batch run did not report completion"; }
 rm -f "$BATCH_LOG"
 
 echo "All voacap skill and voacapl CLI smoke tests passed."

@@ -9,6 +9,8 @@
   [jawatson/voacapl](https://github.com/jawatson/voacapl), not a specific
   commit — `setup.sh` resolves "latest" at run time. Pass `--release <tag>`
   to pin/test against a specific one.
+- Signed commits are preferred but not required (branch protection does not
+  enforce `required_signatures`).
 - A daily scheduled workflow
   (`.github/workflows/check-upstream-release.yml`) checks whether upstream
   has published a new release; if so it builds and smoke-tests against it
