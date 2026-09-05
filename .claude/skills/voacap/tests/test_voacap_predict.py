@@ -168,5 +168,68 @@ class TestInputFileLengthGuard:
         assert "ANTCALC" not in err
 
 
+class TestRootDirectoryLengthGuard:
+    """main() must refuse an over-length --itshfbc / --run-dir up front
+    rather than handing voacapl a path its fixed-length FORTRAN buffers
+    will silently truncate (see VOACAPL_ROOT_DIRECTORY_LIMIT)."""
+
+    def _run_main(self, tmp_path, argv):
+        full_argv = [
+            "voacap_predict.py",
+            "--voacapl-bin", "/bin/true",
+            "--tx-name", "A", "--tx-lat", "0", "--tx-lon", "0",
+            "--rx-name", "B", "--rx-lat", "1", "--rx-lon", "1",
+            "--month", "6", "--freqs", "14.2",
+        ] + argv
+        old_argv = sys.argv
+        sys.argv = full_argv
+        stderr = io.StringIO()
+        try:
+            with redirect_stderr(stderr):
+                rc = vp.main()
+        finally:
+            sys.argv = old_argv
+        return rc, stderr.getvalue()
+
+    def test_overlong_itshfbc_is_rejected_before_running_voacapl(self, tmp_path):
+        overlong = str(tmp_path / ("a" * vp.VOACAPL_ROOT_DIRECTORY_LIMIT))
+        assert len(overlong) > vp.VOACAPL_ROOT_DIRECTORY_LIMIT
+        rc, err = self._run_main(tmp_path, ["--itshfbc", overlong])
+        assert rc == 1
+        assert "VOACAPL_ROOT_DIRECTORY_LIMIT" in err or "itshfbc" in err
+
+    def test_overlong_run_dir_is_rejected_before_running_voacapl(self, tmp_path):
+        itshfbc = tmp_path / "itshfbc"
+        (itshfbc / "run").mkdir(parents=True)
+        overlong_run_dir = str(tmp_path / ("r" * vp.VOACAPL_ROOT_DIRECTORY_LIMIT))
+        rc, err = self._run_main(
+            tmp_path, ["--itshfbc", str(itshfbc), "--run-dir", overlong_run_dir]
+        )
+        assert rc == 1
+        assert "run-dir" in err
+
+    def test_itshfbc_at_limit_is_accepted(self, tmp_path, monkeypatch):
+        base = tmp_path / ("a" * 5)
+        (base / "run").mkdir(parents=True)
+        itshfbc = str(base)
+        assert len(itshfbc) <= vp.VOACAPL_ROOT_DIRECTORY_LIMIT
+
+        called = {}
+
+        class FakeResult:
+            returncode = 1
+            stdout = ""
+            stderr = ""
+
+        def fake_run(cmd, **kwargs):
+            called["cmd"] = cmd
+            return FakeResult()
+
+        monkeypatch.setattr(vp.subprocess, "run", fake_run)
+        rc, err = self._run_main(tmp_path, ["--itshfbc", itshfbc])
+        assert "cmd" in called, "the length guard should not have rejected this path"
+        assert "VOACAPL_ROOT_DIRECTORY_LIMIT" not in err
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))
