@@ -52,7 +52,20 @@ try {
     $LogPath = Join-Path $TempDir "install.log"
 
     Write-Host "Downloading itshfbc installer from $InstallerUrl ..."
-    Invoke-WebRequest -Uri $InstallerUrl -OutFile $InstallerPath -UseBasicParsing
+    # A real browser User-Agent, in case the mirror filters on it: PowerShell's
+    # default WinHTTP-style UA is a common signal for naive bot-blocking.
+    Invoke-WebRequest -Uri $InstallerUrl -OutFile $InstallerPath -UseBasicParsing `
+        -UserAgent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) voacap-skill-installer"
+
+    $bytes = [System.IO.File]::ReadAllBytes($InstallerPath)
+    Write-Host "Downloaded $($bytes.Length) bytes."
+    $headerText = -join ($bytes[0..1] | ForEach-Object { [char]$_ })
+    if ($headerText -ne "MZ") {
+        $previewLen = [Math]::Min(500, $bytes.Length)
+        $preview = [System.Text.Encoding]::ASCII.GetString($bytes, 0, $previewLen)
+        Write-Error "Downloaded file does not look like a Windows executable (expected 'MZ' header, got '$headerText'), $($bytes.Length) bytes. First bytes:`n$preview"
+        exit 1
+    }
 
     # Invoke-WebRequest marks the file with the Zone.Identifier
     # "downloaded from the internet" ADS. Windows Defender SmartScreen's
