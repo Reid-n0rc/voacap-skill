@@ -191,10 +191,14 @@ jobs:
           voacapl -v 2>&1 || echo "(voacapl -v not available)"
 
   install-script:
-    name: Test one-command installer
+    name: Test one-command installer (${{ matrix.os }})
     needs: changes
     if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
 
@@ -204,9 +208,10 @@ jobs:
           python-version: "3.11"
 
       # Deliberately does NOT pre-install gfortran/automake/autoconf: this
-      # is the one job that exercises install.sh's own apt-get dependency
-      # bootstrap (install_build_deps), which every other CI job bypasses
-      # by installing build deps itself before calling setup.sh directly.
+      # is the one job that exercises install.sh's own apt-get/brew
+      # dependency bootstrap (install_build_deps), which every other CI
+      # job bypasses by installing build deps itself before calling
+      # setup.sh directly.
       - name: Run install.sh against this commit
         env:
           VOACAP_SKILL_REPO_URL: ${{ github.workspace }}
