@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
-Generate a VOACAP (voacapl) point-to-point input file, run the prediction,
-and parse the resulting output into a compact hour-by-frequency summary.
+Generate a VOACAP point-to-point input file, run the prediction, and parse
+the resulting output into a compact hour-by-frequency summary.
 
-This talks to the 'voacapl' binary built from jawatson/voacapl (cloned and
-built by setup.sh into vendor/voacapl). It writes a fixed-column-format
-VOACAP "ASCII CARD" input file (the same format voacapl itself writes when
-saving a circuit), matching the exact FORTRAN format strings used in
-src/voacapw/voacap.for of that project.
+On macOS/Linux this talks to the 'voacapl' binary built from
+jawatson/voacapl (cloned and built by setup.sh into vendor/voacapl). On
+Windows it talks to 'voacapw.exe', the native NTIA/ITS Windows engine
+installed by setup.ps1 into C:\\itshfbc\\bin_win. Both wrap the same
+voacapw.for FORTRAN batch engine and share the same ASCII "CARD" input
+format (the format voacapl itself writes when saving a circuit, matching
+the exact FORTRAN format strings used in src/voacapw/voacap.for), but take
+different command lines -- see build_engine_command().
 """
 import argparse
 import math
@@ -217,24 +220,78 @@ def parse_output(text):
     return blocks
 
 
-def find_voacapl():
+def default_itshfbc_dir():
+    """~/itshfbc on macOS/Linux (voacapl's makeitshfbc default). On Windows
+    the setup.ps1-driven itshfbc installer refuses non-DOS-conformant paths
+    (spaces in particular), so C:\\itshfbc -- not a user-profile path, which
+    is typically under 'C:\\Users\\<name>\\...' -- is the standard target."""
+    if sys.platform.startswith("win"):
+        return os.environ.get("VOACAP_ITSHFBC", r"C:\itshfbc")
+    return os.path.expanduser(os.environ.get("VOACAP_ITSHFBC", "~/itshfbc"))
+
+
+def find_engine(engine_bin, itshfbc):
+    """Locate the VOACAP batch engine binary. Returns (path, kind), where
+    kind is 'voacapl' (jawatson/voacapl, macOS/Linux) or 'voacapw' (the
+    native NTIA/ITS Windows engine, voacapw.exe, installed by setup.ps1).
+    Both trace back to the same voacapw.for FORTRAN batch engine, but take
+    a different command line (see build_engine_command)."""
+    if engine_bin:
+        # split on both separators: a Windows-style path may reach here
+        # verbatim (e.g. tests running on macOS/Linux), where os.path
+        # wouldn't treat '\\' as a separator.
+        basename = re.split(r"[\\/]", engine_bin)[-1].lower()
+        kind = "voacapw" if basename.startswith("voacapw") else "voacapl"
+        return engine_bin, kind
+
+    if sys.platform.startswith("win"):
+        path = shutil.which("voacapw") or shutil.which("voacapw.exe")
+        if path:
+            return path, "voacapw"
+        candidate = os.path.join(itshfbc, "bin_win", "voacapw.exe")
+        if os.path.isfile(candidate):
+            return candidate, "voacapw"
+        return None, None
+
     path = shutil.which("voacapl")
     if path:
-        return path
+        return path, "voacapl"
     for candidate in (
         os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "local", "bin", "voacapl"),
     ):
         candidate = os.path.abspath(candidate)
         if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
-            return candidate
-    return None
+            return candidate, "voacapl"
+    return None, None
+
+
+def build_engine_command(engine_bin, engine_kind, itshfbc, run_dir, input_file, output_file, args):
+    """voacapl and voacapw.exe both wrap voacapw.for, but voacapl's CLI adds
+    flags (-s, --run-dir, --absorption-mode) that voacapw.exe's much
+    simpler `[silent] <itshfbc_dir> <input> <output>` invocation has no
+    equivalent for (see https://www.voacap.com/2023/voacapw-intro.html)."""
+    if engine_kind == "voacapw":
+        if args.run_dir:
+            raise ValueError("--run-dir is not supported with the voacapw engine (Windows)")
+        if args.absorption_mode:
+            raise ValueError("--absorption-mode is not supported with the voacapw engine (Windows)")
+        return [engine_bin, "silent", itshfbc, input_file, output_file]
+
+    cmd = [engine_bin, "-s"]
+    if args.run_dir:
+        cmd.append(f"--run-dir={run_dir}")
+    if args.absorption_mode:
+        cmd.append(f"--absorption-mode={args.absorption_mode}")
+    cmd += [itshfbc, input_file, output_file]
+    return cmd
 
 
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--itshfbc", default=os.path.expanduser(
-        os.environ.get("VOACAP_ITSHFBC", "~/itshfbc")))
-    p.add_argument("--voacapl-bin", default=None)
+    p.add_argument("--itshfbc", default=default_itshfbc_dir())
+    p.add_argument("--voacapl-bin", default=None,
+                    help="Override the engine binary path (voacapl on macOS/Linux, "
+                         "voacapw.exe on Windows). Auto-detected by default.")
 
     p.add_argument("--tx-name", required=True)
     p.add_argument("--tx-lat", type=float, required=True)
@@ -289,15 +346,16 @@ def parse_args():
 def main():
     args = parse_args()
 
-    voacapl_bin = args.voacapl_bin or find_voacapl()
-    if not voacapl_bin:
-        print("error: could not find the 'voacapl' binary. Build it first "
-              "(see .claude/skills/voacap/scripts/setup.sh) or pass --voacapl-bin.",
-              file=sys.stderr)
-        return 1
-
     itshfbc = os.path.expanduser(args.itshfbc)
     run_dir = os.path.expanduser(args.run_dir) if args.run_dir else os.path.join(itshfbc, "run")
+
+    engine_bin, engine_kind = find_engine(args.voacapl_bin, itshfbc)
+    if not engine_bin:
+        setup_script = "setup.ps1" if sys.platform.startswith("win") else "setup.sh"
+        print(f"error: could not find the VOACAP engine binary. Run it first "
+              f"(see .claude/skills/voacap/scripts/{setup_script}) or pass --voacapl-bin.",
+              file=sys.stderr)
+        return 1
 
     if len(itshfbc) > VOACAPL_ROOT_DIRECTORY_LIMIT:
         print(f"error: --itshfbc path {itshfbc!r} is longer than "
@@ -345,17 +403,17 @@ def main():
     with open(input_path, "w") as fh:
         fh.write(build_input(args))
 
-    cmd = [voacapl_bin, "-s"]
-    if args.run_dir:
-        cmd.append(f"--run-dir={run_dir}")
-    if args.absorption_mode:
-        cmd.append(f"--absorption-mode={args.absorption_mode}")
-    cmd += [itshfbc, input_file, output_file]
+    try:
+        cmd = build_engine_command(
+            engine_bin, engine_kind, itshfbc, run_dir, input_file, output_file, args)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
 
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
 
     if result.returncode != 0 or not os.path.isfile(output_path):
-        print("error: voacapl run failed", file=sys.stderr)
+        print(f"error: {engine_kind} run failed", file=sys.stderr)
         print(result.stdout, file=sys.stderr)
         print(result.stderr, file=sys.stderr)
         return 1

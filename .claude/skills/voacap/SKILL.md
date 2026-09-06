@@ -13,8 +13,8 @@ location.
 
 ## One-time setup
 
-`voacapl` must be cloned+built and `~/itshfbc` (its data directory) must be
-initialized before predictions can run.
+On macOS/Linux, `voacapl` must be cloned+built and `~/itshfbc` (its data
+directory) must be initialized before predictions can run:
 
 ```
 scripts/setup.sh
@@ -26,6 +26,15 @@ present), builds it into `<repo>/local/` via the normal
 built or on `PATH`), and runs `makeitshfbc` to populate `~/itshfbc` (skipped
 if already done). Safe to re-run. Requires `git`, `gfortran`, `automake`,
 and `autoreconf` on the system.
+
+On Windows, there's no source build: `scripts/setup.ps1` instead downloads
+and silently installs the native NTIA/ITS Windows VOACAP engine
+(`voacapw.exe`) into `C:\itshfbc` (a no-spaces path is required by the
+installer). Safe to re-run; requires PowerShell and internet access.
+
+```
+scripts\setup.ps1
+```
 
 ## Running a prediction
 
@@ -61,7 +70,8 @@ Key optional arguments (defaults shown):
   `--noise 145` (man-made noise; magnitude of dBW at 3 MHz — 145=quiet/suburban,
   150=quiet rural, 164=remote, 140.4=residential), `--min-angle 3`
   (minimum radiation takeoff angle in degrees)
-- `--itshfbc PATH` if the data directory isn't at `~/itshfbc`
+- `--itshfbc PATH` if the data directory isn't at `~/itshfbc` (default
+  `C:\itshfbc` on Windows)
 
 Each run writes a uniquely-named input/output file pair under
 `itshfbc/run/` and deletes them afterwards unless `--keep-files` is passed

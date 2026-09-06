@@ -245,3 +245,44 @@ jobs:
         env:
           VOACAP_SKILL_REPO_URL: ${{ github.workspace }}
         run: sh install.sh
+
+  install-script-windows:
+    name: Test one-command installer (windows-latest)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run install.ps1 against this commit
+        env:
+          VOACAP_SKILL_REPO_URL: ${{ github.workspace }}
+        run: .\install.ps1
+
+      - name: Verify the skill landed in %USERPROFILE%\.claude\skills\voacap
+        run: |
+          if (-not (Test-Path "$env:USERPROFILE\.claude\skills\voacap\scripts\voacap_predict.py")) { exit 1 }
+          if (-not (Test-Path "$env:USERPROFILE\.claude\skills\voacap\scripts\setup.ps1")) { exit 1 }
+
+      - name: Run a prediction against the installed skill
+        run: |
+          python "$env:USERPROFILE\.claude\skills\voacap\scripts\voacap_predict.py" `
+            --tx-name "London" --tx-lat 51.5 --tx-lon -0.13 `
+            --rx-name "New York" --rx-lat 40.7 --rx-lon -74.0 `
+            --month 9 --ssn 60 --freqs 7.1 14.2 21.2 --json > install_test.json
+          python -c "
+          import json
+          data = json.load(open('install_test.json'))
+          assert len(data['hours']) == 24, data
+          print('OK: installed skill produced a valid 24-hour prediction')
+          "
+
+      - name: Re-run install.ps1 to confirm it's idempotent
+        env:
+          VOACAP_SKILL_REPO_URL: ${{ github.workspace }}
+        run: .\install.ps1

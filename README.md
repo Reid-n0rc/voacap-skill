@@ -27,6 +27,15 @@ macOS and Linux for every change; see `.github/workflows/ci.yml`:
 curl -fsSL https://raw.githubusercontent.com/Reid-n0rc/voacap-skill/main/install.sh | sh
 ```
 
+On Windows (PowerShell), `install.ps1` installs the native NTIA/ITS Windows
+VOACAP engine (`voacapw.exe`, via a silent installer) instead of building
+`voacapl`. CI runs this script end-to-end on `windows-latest`; see
+`.github/workflows/ci.yml`:
+
+```
+irm https://raw.githubusercontent.com/Reid-n0rc/voacap-skill/main/install.ps1 | iex
+```
+
 Then just ask Claude Code about HF propagation in any project. Or run it
 directly:
 
