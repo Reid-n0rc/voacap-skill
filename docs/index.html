@@ -304,10 +304,9 @@
   </p>
   <pre><code>/plugin marketplace add Reid-n0rc/voacap-skill
 /plugin install voacap</code></pre>
-  <p>That's it &mdash; VOACAP builds itself the first time you use it.</p>
-  <p>Prefer a manual install?</p>
-  <pre><code>curl -fsSL https://raw.githubusercontent.com/Reid-n0rc/voacap-skill/main/install.sh | sh</code></pre>
-  <pre><code>irm https://raw.githubusercontent.com/Reid-n0rc/voacap-skill/main/install.ps1 | iex</code></pre>
+  <p>That's it &mdash; VOACAP builds itself the first time you use it. A
+  manual install (no plugin manager) is also available &mdash; see the
+  <a href="https://github.com/Reid-n0rc/voacap-skill#readme">README</a>.</p>
 </section>
 
 <section id="use">
@@ -319,20 +318,12 @@
     missing, like an up-to-date sunspot number.
   </p>
   <p>
-    Prefer the command line? The skill is really a thin, well-documented
-    wrapper around one script, and you can run it directly:
+    Under the hood it's a thin wrapper around one script that prints one
+    row per UTC hour, with the best-performing frequency for that hour
+    and the REL/SNR for every frequency you tried. Full flag reference is
+    below in <a href="#reference">Section 5</a>, pulled straight from the
+    skill's own docs &mdash; it can't drift out of date.
   </p>
-  <pre><code>python3 skills/voacap/scripts/voacap_predict.py \
-  --tx-name "London" --tx-lat 51.5 --tx-lon -0.13 \
-  --rx-name "New York" --rx-lat 40.7 --rx-lon -74.0 \
-  --month 9 --ssn 60 \
-  --freqs 7.1 14.2 21.2</code></pre>
-  <p>That prints one row per UTC hour, with the best-performing frequency
-  for that hour and the REL/SNR for every frequency you tried. Add
-  <code>--json</code> for machine-readable output.</p>
-  <p>Full flag reference is below in <a href="#reference">Section 5</a>,
-  pulled straight from the skill's own docs &mdash; it can't drift out of
-  date.</p>
 </section>
 
 <section id="examples">
