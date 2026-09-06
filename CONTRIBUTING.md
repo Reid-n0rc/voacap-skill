@@ -19,3 +19,13 @@
   has published a new release; if so it builds and smoke-tests against it
   and, if that fails, opens a GitHub issue assigned to `Reid-n0rc` labeled
   `upstream-regression`.
+- On Windows there's no source build: `install.ps1` / `setup.ps1` install
+  the native NTIA/ITS Windows VOACAP engine (`voacapw.exe`) from a pinned
+  installer snapshot (see `setup.ps1`'s `-InstallerUrl` default) instead.
+  `voacap_predict.py`'s `find_engine()` picks `voacapl` vs. `voacapw.exe`
+  based on `sys.platform`. Since that installer isn't a versioned release
+  feed, a second daily workflow
+  (`.github/workflows/check-windows-engine.yml`) just re-runs the full
+  install+prediction smoke test against `main` and files an issue labeled
+  `windows-engine-regression` on failure, to catch the pinned mirror
+  moving or changing.
