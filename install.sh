@@ -6,7 +6,10 @@
 #   curl -fsSL https://raw.githubusercontent.com/Reid-n0rc/voacap-skill/main/install.sh | sh
 set -e
 
-REPO_URL="https://github.com/Reid-n0rc/voacap-skill.git"
+# Overridable for CI, so the test suite can exercise this exact script
+# against the commit under test instead of always pulling main.
+REPO_URL="${VOACAP_SKILL_REPO_URL:-https://github.com/Reid-n0rc/voacap-skill.git}"
+REF="${VOACAP_SKILL_REF:-}"
 SKILLS_DIR="$HOME/.claude/skills"
 DEST="$SKILLS_DIR/voacap"
 TMP_DIR="$(mktemp -d)"
@@ -34,7 +37,11 @@ MSG
 install_build_deps
 
 echo "Fetching voacap-skill..."
-git clone --depth 1 "$REPO_URL" "$TMP_DIR/repo"
+if [ -n "$REF" ]; then
+    git clone --depth 1 --branch "$REF" "$REPO_URL" "$TMP_DIR/repo"
+else
+    git clone --depth 1 "$REPO_URL" "$TMP_DIR/repo"
+fi
 
 mkdir -p "$SKILLS_DIR"
 rm -rf "$DEST"

@@ -77,6 +77,12 @@ jobs:
       - name: MyPy (type checking)
         run: mypy .claude/skills/voacap/scripts/ --ignore-missing-imports --no-error-summary || true
 
+      - name: ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: "."
+          ignore_paths: vendor local
+
   unit-tests:
     name: Python unit tests
     needs: changes
@@ -183,3 +189,48 @@ jobs:
         run: |
           echo "voacapl version: ${{ steps.voacapl.outputs.tag }}"
           voacapl -v 2>&1 || echo "(voacapl -v not available)"
+
+  install-script:
+    name: Test one-command installer
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Deliberately does NOT pre-install gfortran/automake/autoconf: this
+      # is the one job that exercises install.sh's own apt-get dependency
+      # bootstrap (install_build_deps), which every other CI job bypasses
+      # by installing build deps itself before calling setup.sh directly.
+      - name: Run install.sh against this commit
+        env:
+          VOACAP_SKILL_REPO_URL: ${{ github.workspace }}
+        run: sh install.sh
+
+      - name: Verify the skill landed in ~/.claude/skills/voacap
+        run: |
+          test -f "$HOME/.claude/skills/voacap/scripts/voacap_predict.py"
+          test -x "$HOME/.claude/skills/voacap/scripts/setup.sh"
+
+      - name: Run a prediction against the installed skill
+        run: |
+          python3 "$HOME/.claude/skills/voacap/scripts/voacap_predict.py" \
+            --tx-name "London" --tx-lat 51.5 --tx-lon -0.13 \
+            --rx-name "New York" --rx-lat 40.7 --rx-lon -74.0 \
+            --month 9 --ssn 60 --freqs 7.1 14.2 21.2 --json > /tmp/install_test.json
+          python3 -c "
+          import json
+          data = json.load(open('/tmp/install_test.json'))
+          assert len(data['hours']) == 24, data
+          print('OK: installed skill produced a valid 24-hour prediction')
+          "
+
+      - name: Re-run install.sh to confirm it's idempotent
+        env:
+          VOACAP_SKILL_REPO_URL: ${{ github.workspace }}
+        run: sh install.sh
