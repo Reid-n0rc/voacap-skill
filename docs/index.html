@@ -252,7 +252,8 @@
   <p>
     <strong>voacap-skill</strong> takes that engine (via
     <a href="https://github.com/jawatson/voacapl">voacapl</a>, the modern
-    Linux/GFortran port) and wires it into
+    Linux/GFortran port, on macOS/Linux, or the native NTIA/ITS Windows
+    engine on Windows) and wires it into
     <a href="https://claude.com/claude-code">Claude Code</a> as a "skill"
     &mdash; a capability Claude can reach for on its own. Instead of
     filling out a web form, you just ask, conversationally, in the same
@@ -315,11 +316,17 @@
     every change to this repo.
   </p>
   <p>
+    On Windows, use the PowerShell equivalent instead &mdash; no Fortran
+    toolchain needed there, since it installs the prebuilt native NTIA/ITS
+    Windows VOACAP engine rather than compiling one:
+  </p>
+  <pre><code>irm https://raw.githubusercontent.com/Reid-n0rc/voacap-skill/main/install.ps1 | iex</code></pre>
+  <p>
     That's it &mdash; open Claude Code anywhere and start asking about
     propagation. Prefer to inspect the source first, or hack on the skill
     itself? Clone <a href="https://github.com/Reid-n0rc/voacap-skill">this
     repo</a> and run <code>.claude/skills/voacap/scripts/setup.sh</code>
-    directly instead.
+    (or, on Windows, <code>setup.ps1</code>) directly instead.
   </p>
 </section>
 
@@ -402,7 +409,7 @@
     <a href="https://github.com/Reid-n0rc/voacap-skill/issues">report an issue</a> &middot;
     <a href="https://github.com/Reid-n0rc/voacap-skill/releases">releases</a>
   </p>
-  <p>Built on <a href="https://github.com/jawatson/voacapl">voacapl</a>, a Linux/GFortran port of NTIA/ITS VOACAP. Not affiliated with NTIA, ITS, or VOACAP.com.</p>
+  <p>Built on <a href="https://github.com/jawatson/voacapl">voacapl</a> (a Linux/GFortran port of NTIA/ITS VOACAP) and, on Windows, the native NTIA/ITS VOACAP engine. Not affiliated with NTIA, ITS, or VOACAP.com.</p>
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi" crossorigin="anonymous"></script>

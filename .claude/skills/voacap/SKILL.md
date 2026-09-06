@@ -1,15 +1,16 @@
 ---
 name: voacap
-description: Run HF (shortwave) radio propagation predictions between two locations using the VOACAP engine (voacapl, cloned/built from jawatson/voacapl). Use when the user asks about HF/shortwave propagation, best frequency/band for a radio circuit, MUF/LUF, signal reliability or SNR between two points, or to "run a VOACAP/voacapl prediction".
+description: Run HF (shortwave) radio propagation predictions between two locations using the VOACAP engine (voacapl on macOS/Linux, the native NTIA/ITS Windows engine on Windows). Use when the user asks about HF/shortwave propagation, best frequency/band for a radio circuit, MUF/LUF, signal reliability or SNR between two points, or to "run a VOACAP/voacapl prediction".
 ---
 
 # VOACAP propagation prediction
 
-This skill runs point-to-point HF propagation predictions using `voacapl`
-(the Linux/GFortran port of NTIA/ITS VOACAP, https://github.com/jawatson/voacapl),
-and reports predicted circuit reliability (REL) and signal-to-noise ratio
-(SNR) per hour and per frequency between a transmitter and receiver
-location.
+This skill runs point-to-point HF propagation predictions using NTIA/ITS
+VOACAP -- `voacapl` (the Linux/GFortran port,
+https://github.com/jawatson/voacapl) on macOS/Linux, or the native
+Windows engine (`voacapw.exe`) on Windows -- and reports predicted
+circuit reliability (REL) and signal-to-noise ratio (SNR) per hour and
+per frequency between a transmitter and receiver location.
 
 ## One-time setup
 
