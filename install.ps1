@@ -45,7 +45,7 @@ try {
     if (Test-Path $Dest) {
         Remove-Item -Recurse -Force $Dest
     }
-    Copy-Item -Recurse -Path (Join-Path $CloneDir ".claude\skills\voacap") -Destination $Dest
+    Copy-Item -Recurse -Path (Join-Path $CloneDir "skills\voacap") -Destination $Dest
 
     Write-Host "Installed skill to $Dest"
     Write-Host "Installing native VOACAP engine..."

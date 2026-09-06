@@ -257,7 +257,7 @@ def find_engine(engine_bin, itshfbc):
     if path:
         return path, "voacapl"
     for candidate in (
-        os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "local", "bin", "voacapl"),
+        os.path.join(os.path.dirname(__file__), "..", "..", "..", "local", "bin", "voacapl"),
     ):
         candidate = os.path.abspath(candidate)
         if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
@@ -353,7 +353,7 @@ def main():
     if not engine_bin:
         setup_script = "setup.ps1" if sys.platform.startswith("win") else "setup.sh"
         print(f"error: could not find the VOACAP engine binary. Run it first "
-              f"(see .claude/skills/voacap/scripts/{setup_script}) or pass --voacapl-bin.",
+              f"(see skills/voacap/scripts/{setup_script}) or pass --voacapl-bin.",
               file=sys.stderr)
         return 1
 

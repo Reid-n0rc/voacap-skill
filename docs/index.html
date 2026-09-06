@@ -300,32 +300,35 @@
   <h2><span class="num">02</span> Installing it</h2>
   <p>
     You'll need <a href="https://claude.com/claude-code">Claude Code</a>
-    installed. Run this one command &mdash; from inside a Claude Code
-    session, or any shell:
+    installed. This repo is a Claude Code plugin &mdash; from inside a
+    Claude Code session, run:
+  </p>
+  <pre><code>/plugin marketplace add Reid-n0rc/voacap-skill
+/plugin install voacap</code></pre>
+  <p>
+    That's it. The plugin's <code>SessionStart</code> hook builds the
+    VOACAP engine automatically the first time you start a session with
+    it enabled: on macOS/Linux it installs the Fortran toolchain needed
+    to build <code>voacapl</code> (voacapl is real, decades-old Fortran
+    under the hood &mdash; that's a feature, not a bug) via Homebrew or
+    apt and builds it; on Windows it installs the prebuilt native
+    NTIA/ITS Windows VOACAP engine instead. Either way there's no
+    separate build step to run by hand, and it's safe across sessions
+    &mdash; already-done steps are skipped.
+  </p>
+  <p>
+    Prefer not to use the plugin manager? <code>install.sh</code> /
+    <code>install.ps1</code> do the same work by hand and copy the skill
+    to <code>~/.claude/skills/voacap</code> instead:
   </p>
   <pre><code>curl -fsSL https://raw.githubusercontent.com/Reid-n0rc/voacap-skill/main/install.sh | sh</code></pre>
-  <p>
-    It installs the Fortran toolchain needed to build the VOACAP engine
-    (voacapl is real, decades-old Fortran under the hood &mdash; that's a
-    feature, not a bug) via Homebrew or apt, builds <code>voacapl</code>,
-    initializes its <code>~/itshfbc</code> data directory, and copies the
-    skill to <code>~/.claude/skills/voacap</code> so it's available in
-    every Claude Code project &mdash; no repo clone needed. Safe to re-run
-    any time; already-done steps are skipped. CI runs this exact script,
-    dependency install included, on both macOS and Linux runners for
-    every change to this repo.
-  </p>
-  <p>
-    On Windows, use the PowerShell equivalent instead &mdash; no Fortran
-    toolchain needed there, since it installs the prebuilt native NTIA/ITS
-    Windows VOACAP engine rather than compiling one:
-  </p>
   <pre><code>irm https://raw.githubusercontent.com/Reid-n0rc/voacap-skill/main/install.ps1 | iex</code></pre>
   <p>
-    That's it &mdash; open Claude Code anywhere and start asking about
-    propagation. Prefer to inspect the source first, or hack on the skill
-    itself? Clone <a href="https://github.com/Reid-n0rc/voacap-skill">this
-    repo</a> and run <code>.claude/skills/voacap/scripts/setup.sh</code>
+    CI runs both scripts end-to-end, dependency install included, on
+    macOS, Linux, and Windows runners for every change to this repo.
+    Prefer to inspect the source first, or hack on the skill itself?
+    Clone <a href="https://github.com/Reid-n0rc/voacap-skill">this
+    repo</a> and run <code>skills/voacap/scripts/setup.sh</code>
     (or, on Windows, <code>setup.ps1</code>) directly instead.
   </p>
 </section>
@@ -342,7 +345,7 @@
     Prefer the command line? The skill is really a thin, well-documented
     wrapper around one script, and you can run it directly:
   </p>
-  <pre><code>python3 .claude/skills/voacap/scripts/voacap_predict.py \
+  <pre><code>python3 skills/voacap/scripts/voacap_predict.py \
   --tx-name "London" --tx-lat 51.5 --tx-lon -0.13 \
   --rx-name "New York" --rx-lat 40.7 --rx-lon -74.0 \
   --month 9 --ssn 60 \
@@ -392,7 +395,7 @@
 <section id="reference">
   <h2><span class="num">05</span> Full command reference</h2>
   <p>This section is fetched live from the skill's own
-  <a href="https://github.com/Reid-n0rc/voacap-skill/blob/main/.claude/skills/voacap/SKILL.md"><code>SKILL.md</code></a>
+  <a href="https://github.com/Reid-n0rc/voacap-skill/blob/main/skills/voacap/SKILL.md"><code>SKILL.md</code></a>
   on every page load &mdash; so it always matches whatever is actually on
   <code>main</code>, even if this page itself hasn't been redeployed.</p>
   <div id="reference-body">
@@ -450,7 +453,7 @@
     })
     .catch(function () {});
 
-  fetch("https://raw.githubusercontent.com/" + REPO + "/main/.claude/skills/voacap/SKILL.md")
+  fetch("https://raw.githubusercontent.com/" + REPO + "/main/skills/voacap/SKILL.md")
     .then(function (r) { if (!r.ok) throw new Error("fetch failed"); return r.text(); })
     .then(function (md) {
       var body = document.getElementById("reference-body");
@@ -466,7 +469,7 @@
     .catch(function () {
       document.getElementById("reference-body").innerHTML =
         '<p><em>Could not load live docs right now &mdash; see ' +
-        '<a href="https://github.com/' + REPO + '/blob/main/.claude/skills/voacap/SKILL.md">SKILL.md on GitHub</a> directly.</em></p>';
+        '<a href="https://github.com/' + REPO + '/blob/main/skills/voacap/SKILL.md">SKILL.md on GitHub</a> directly.</em></p>';
     });
 })();
 </script>

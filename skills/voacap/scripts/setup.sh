@@ -10,43 +10,56 @@ set -e
 
 UPSTREAM_REPO="https://github.com/jawatson/voacapl.git"
 UPSTREAM_OWNER_REPO="jawatson/voacapl"
-REPO_ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 VENDOR_DIR="$REPO_ROOT/vendor/voacapl"
 MARKER="$REPO_ROOT/local/.voacapl-release"
 
 RELEASE="latest"
+EXPLICIT_RELEASE=false
 while [ $# -gt 0 ]; do
     case "$1" in
-        --release) RELEASE="$2"; shift 2 ;;
-        --release=*) RELEASE="${1#--release=}"; shift ;;
+        --release) RELEASE="$2"; EXPLICIT_RELEASE=true; shift 2 ;;
+        --release=*) RELEASE="${1#--release=}"; EXPLICIT_RELEASE=true; shift ;;
         *) echo "unknown argument: $1" >&2; exit 1 ;;
     esac
 done
 
 cd "$REPO_ROOT"
 
-if [ "$RELEASE" = "latest" ]; then
-    echo "Looking up latest $UPSTREAM_OWNER_REPO release..."
-    if command -v gh >/dev/null 2>&1; then
-        RELEASE=$(gh api "repos/$UPSTREAM_OWNER_REPO/releases/latest" --jq .tag_name 2>/dev/null || true)
+# When called with no --release (e.g. from the plugin's SessionStart hook,
+# which runs on every session start) and a build already exists, skip the
+# "latest release" network lookup entirely -- it'd otherwise add a GitHub
+# API call, and a hard failure when offline, to every single session.
+# --release always re-resolves/re-checks, matching prior behavior.
+if [ "$EXPLICIT_RELEASE" = false ] && [ -x "$REPO_ROOT/local/bin/voacapl" ]; then
+    CURRENT=""
+    [ -f "$MARKER" ] && CURRENT="$(cat "$MARKER")"
+    RELEASE="${CURRENT:-unknown}"
+    echo "voacapl already built (release $RELEASE); skipping release check."
+else
+    if [ "$RELEASE" = "latest" ]; then
+        echo "Looking up latest $UPSTREAM_OWNER_REPO release..."
+        if command -v gh >/dev/null 2>&1; then
+            RELEASE=$(gh api "repos/$UPSTREAM_OWNER_REPO/releases/latest" --jq .tag_name 2>/dev/null || true)
+        fi
+        if [ -z "$RELEASE" ] || [ "$RELEASE" = "latest" ]; then
+            RELEASE=$(curl -fsSL "https://api.github.com/repos/$UPSTREAM_OWNER_REPO/releases/latest" \
+                | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
+        fi
+        if [ -z "$RELEASE" ]; then
+            echo "error: could not determine the latest release tag" >&2
+            exit 1
+        fi
     fi
-    if [ -z "$RELEASE" ] || [ "$RELEASE" = "latest" ]; then
-        RELEASE=$(curl -fsSL "https://api.github.com/repos/$UPSTREAM_OWNER_REPO/releases/latest" \
-            | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
-    fi
-    if [ -z "$RELEASE" ]; then
-        echo "error: could not determine the latest release tag" >&2
-        exit 1
-    fi
-fi
-echo "Target release: $RELEASE"
+    echo "Target release: $RELEASE"
 
-CURRENT=""
-[ -f "$MARKER" ] && CURRENT="$(cat "$MARKER")"
+    CURRENT=""
+    [ -f "$MARKER" ] && CURRENT="$(cat "$MARKER")"
 
-if [ "$CURRENT" != "$RELEASE" ]; then
-    echo "No confirmed build of release $RELEASE (previous marker: ${CURRENT:-none}); (re)building..."
-    rm -rf "$VENDOR_DIR" "$REPO_ROOT/local"
+    if [ "$CURRENT" != "$RELEASE" ]; then
+        echo "No confirmed build of release $RELEASE (previous marker: ${CURRENT:-none}); (re)building..."
+        rm -rf "$VENDOR_DIR" "$REPO_ROOT/local"
+    fi
 fi
 
 if [ ! -x "$REPO_ROOT/local/bin/voacapl" ]; then
@@ -86,7 +99,7 @@ MSG
     cd "$REPO_ROOT"
     mkdir -p "$REPO_ROOT/local"
     echo "$RELEASE" > "$MARKER"
-else
+elif [ "$EXPLICIT_RELEASE" = true ]; then
     echo "voacapl already built (release $CURRENT)."
 fi
 

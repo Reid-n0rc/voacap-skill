@@ -68,8 +68,8 @@ jobs:
         env:
           LATEST_TAG: ${{ steps.latest.outputs.tag }}
         run: |
-          .claude/skills/voacap/scripts/setup.sh --release "$LATEST_TAG"
-          .claude/skills/voacap/scripts/run_tests.sh
+          skills/voacap/scripts/setup.sh --release "$LATEST_TAG"
+          skills/voacap/scripts/run_tests.sh
 
       - name: Record tested release
         if: steps.gate.outputs.new == 'true'
@@ -97,7 +97,7 @@ jobs:
             echo
             echo "Run: $RUN_URL"
             echo
-            echo "Next steps: inspect the failing job log above, and check the [voacapl changelog](https://github.com/jawatson/voacapl/blob/master/ChangeLog.md) and release notes for changes that might affect the input/output format this skill depends on (see .claude/skills/voacap/scripts/voacap_predict.py)."
+            echo "Next steps: inspect the failing job log above, and check the [voacapl changelog](https://github.com/jawatson/voacapl/blob/master/ChangeLog.md) and release notes for changes that might affect the input/output format this skill depends on (see skills/voacap/scripts/voacap_predict.py)."
           } > /tmp/issue-body.md
           gh issue create \
             --repo "$GITHUB_REPOSITORY" \
