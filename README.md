@@ -17,9 +17,11 @@ usage.
 ## Quick start
 
 Install as a personal Claude Code skill with one command (works from inside
-a Claude Code session, or any shell). It installs build dependencies
-(macOS/Debian/Ubuntu), builds `voacapl`, and copies the skill to
-`~/.claude/skills/voacap` so it's available in every project:
+a Claude Code session, or any shell). It installs build dependencies via
+Homebrew or apt, builds `voacapl`, and copies the skill to
+`~/.claude/skills/voacap` so it's available in every project. CI runs this
+exact script end-to-end (including the dependency-install step) on both
+macOS and Linux for every change; see `.github/workflows/ci.yml`:
 
 ```
 curl -fsSL https://raw.githubusercontent.com/Reid-n0rc/voacap-skill/main/install.sh | sh
