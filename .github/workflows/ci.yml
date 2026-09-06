@@ -199,6 +199,12 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      # gh (preinstalled on hosted runners) picks this up automatically,
+      # so install.sh's release lookup uses an authenticated `gh api` call
+      # instead of falling back to an anonymous `curl` against the GitHub
+      # API, which shared-runner IPs hit rate limits on.
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v5
 
