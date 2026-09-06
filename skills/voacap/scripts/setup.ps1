@@ -7,12 +7,15 @@ up its itshfbc data directory. Windows analog of setup.sh.
 Unlike setup.sh (which clones and compiles jawatson/voacapl from source),
 there is no source build on Windows: this downloads a prebuilt installer
 and runs it silently. The installer is itshfbc.exe, a freeware package
-built by NTIA/ITS (a U.S. government work, not subject to copyright) and
-distributed by Greg Hand at https://www.greg-hand.com/hfwin32.html -- see
-that page and its README.txt for background. There is no versioned
-release API for it (just a dated-filename directory listing), so the
-default URL below is pinned to a specific snapshot; pass -InstallerUrl to
-override.
+built by NTIA/ITS (a U.S. government work, not subject to copyright),
+originally distributed by Greg Hand at
+https://www.greg-hand.com/hfwin32.html -- see that page and its README.txt
+for background. The default URL below instead pulls a mirror of that same
+build from this repo's GitHub Releases: greg-hand.com fronts downloads
+with anti-bot/hosting protection that blocks requests from GitHub-hosted
+CI runner IP ranges (and possibly other datacenter ranges), which made
+this installer unreliable in automation. Pass -InstallerUrl to use the
+original source, another mirror, or a newer build.
 
 Safe to re-run: skipped entirely if voacapw.exe already exists at the
 target itshfbc directory.
@@ -27,7 +30,7 @@ Direct download URL for the itshfbc installer exe.
 #>
 param(
     [string]$ItshfbcDir = $(if ($env:VOACAP_ITSHFBC) { $env:VOACAP_ITSHFBC } else { "C:\itshfbc" }),
-    [string]$InstallerUrl = $(if ($env:VOACAP_ITSHFBC_INSTALLER_URL) { $env:VOACAP_ITSHFBC_INSTALLER_URL } else { "https://www.greg-hand.com/versions/itshfbc_180417a.exe" })
+    [string]$InstallerUrl = $(if ($env:VOACAP_ITSHFBC_INSTALLER_URL) { $env:VOACAP_ITSHFBC_INSTALLER_URL } else { "https://github.com/Reid-n0rc/voacap-skill/releases/download/itshfbc-mirror-1/itshfbc_180417a.exe" })
 )
 
 $ErrorActionPreference = "Stop"
@@ -51,42 +54,45 @@ try {
     $InstallerPath = Join-Path $TempDir "itshfbc-installer.exe"
     $LogPath = Join-Path $TempDir "install.log"
 
-    # A real browser User-Agent, in case the mirror filters on it: PowerShell's
+    # Known SHA256 for the build this repo mirrors, so a corrupted or
+    # unexpectedly substituted download is caught before we run it. Only
+    # checked when InstallerUrl is that mirror; a custom -InstallerUrl
+    # (original source, a newer build, etc.) skips this check.
+    $KnownMirrorUrl = "https://github.com/Reid-n0rc/voacap-skill/releases/download/itshfbc-mirror-1/itshfbc_180417a.exe"
+    $KnownMirrorSha256 = "FAD84415D309C6F4B3CC1667BB0B85F808D8F513AE5F7B52EE6BE93F9880A50A"
+
+    # A real browser User-Agent, in case a mirror filters on it: PowerShell's
     # default WinHTTP-style UA is a common signal for naive bot-blocking.
-    # The host also fronts downloads with a "One moment, please..." JS-reload
-    # interstitial for some client IPs (seen from GitHub-hosted CI runners);
-    # it sets a cookie and expects a reload a few seconds later, so retry a
-    # few times with the same cookie jar and a short delay instead of failing
-    # on the first non-MZ response.
-    $session = $null
-    $maxAttempts = 4
+    $maxAttempts = 3
     for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
         Write-Host "Downloading itshfbc installer from $InstallerUrl (attempt $attempt/$maxAttempts) ..."
-        $params = @{
-            Uri            = $InstallerUrl
-            OutFile        = $InstallerPath
-            UseBasicParsing = $true
-            UserAgent      = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) voacap-skill-installer"
-        }
-        if ($session) { $params.WebSession = $session } else { $params.SessionVariable = "session" }
-        Invoke-WebRequest @params
-        if (-not $session) { $session = Get-Variable -Name session -ValueOnly }
-
-        $bytes = [System.IO.File]::ReadAllBytes($InstallerPath)
-        Write-Host "Downloaded $($bytes.Length) bytes."
-        $headerText = -join ($bytes[0..1] | ForEach-Object { [char]$_ })
-        if ($headerText -eq "MZ") {
+        try {
+            Invoke-WebRequest -Uri $InstallerUrl -OutFile $InstallerPath -UseBasicParsing `
+                -UserAgent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) voacap-skill-installer"
             break
+        } catch {
+            if ($attempt -eq $maxAttempts) { throw }
+            Write-Host "Download failed ($_); retrying in 5s..."
+            Start-Sleep -Seconds 5
         }
+    }
 
+    $bytes = [System.IO.File]::ReadAllBytes($InstallerPath)
+    Write-Host "Downloaded $($bytes.Length) bytes."
+    $headerText = -join ($bytes[0..1] | ForEach-Object { [char]$_ })
+    if ($headerText -ne "MZ") {
         $previewLen = [Math]::Min(500, $bytes.Length)
         $preview = [System.Text.Encoding]::ASCII.GetString($bytes, 0, $previewLen)
-        if ($attempt -eq $maxAttempts) {
-            Write-Error "Downloaded file does not look like a Windows executable (expected 'MZ' header, got '$headerText'), $($bytes.Length) bytes after $maxAttempts attempts. First bytes:`n$preview"
+        Write-Error "Downloaded file does not look like a Windows executable (expected 'MZ' header, got '$headerText'), $($bytes.Length) bytes. First bytes:`n$preview"
+        exit 1
+    }
+
+    if ($InstallerUrl -eq $KnownMirrorUrl) {
+        $actualSha256 = (Get-FileHash -Path $InstallerPath -Algorithm SHA256).Hash
+        if ($actualSha256 -ne $KnownMirrorSha256) {
+            Write-Error "Downloaded installer's SHA256 ($actualSha256) does not match the expected value ($KnownMirrorSha256) for $InstallerUrl."
             exit 1
         }
-        Write-Host "Got a non-executable response (looks like an interstitial page); waiting 6s and retrying...`n$preview"
-        Start-Sleep -Seconds 6
     }
 
     # Invoke-WebRequest marks the file with the Zone.Identifier
