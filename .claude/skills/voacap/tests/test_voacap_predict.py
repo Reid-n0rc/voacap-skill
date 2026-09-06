@@ -231,5 +231,96 @@ class TestRootDirectoryLengthGuard:
         assert "VOACAPL_ROOT_DIRECTORY_LIMIT" not in err
 
 
+class TestFindEngine:
+    """find_engine() branches on sys.platform to pick voacapl (macOS/Linux)
+    vs. voacapw.exe (Windows, installed by setup.ps1). CI can't assume a
+    real engine is present on any platform, so these mock the filesystem/
+    platform rather than exercising a real lookup."""
+
+    def test_explicit_engine_bin_is_used_as_is(self):
+        path, kind = vp.find_engine("/custom/path/voacapl", "/whatever")
+        assert path == "/custom/path/voacapl"
+        assert kind == "voacapl"
+
+    def test_explicit_voacapw_bin_is_detected_by_name(self):
+        path, kind = vp.find_engine(r"C:\itshfbc\bin_win\voacapw.exe", r"C:\itshfbc")
+        assert path == r"C:\itshfbc\bin_win\voacapw.exe"
+        assert kind == "voacapw"
+
+    def test_windows_falls_back_to_itshfbc_bin_win(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(vp.sys, "platform", "win32")
+        monkeypatch.setattr(vp.shutil, "which", lambda name: None)
+        bin_win = tmp_path / "bin_win"
+        bin_win.mkdir()
+        engine = bin_win / "voacapw.exe"
+        engine.write_text("")
+        path, kind = vp.find_engine(None, str(tmp_path))
+        assert path == str(engine)
+        assert kind == "voacapw"
+
+    def test_windows_missing_engine_returns_none(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(vp.sys, "platform", "win32")
+        monkeypatch.setattr(vp.shutil, "which", lambda name: None)
+        path, kind = vp.find_engine(None, str(tmp_path))
+        assert path is None
+        assert kind is None
+
+    def test_windows_prefers_which_result(self, monkeypatch):
+        monkeypatch.setattr(vp.sys, "platform", "win32")
+        monkeypatch.setattr(vp.shutil, "which", lambda name: r"C:\PATH\voacapw.exe" if name == "voacapw" else None)
+        path, kind = vp.find_engine(None, r"C:\itshfbc")
+        assert path == r"C:\PATH\voacapw.exe"
+        assert kind == "voacapw"
+
+    def test_default_itshfbc_dir_is_c_drive_on_windows(self, monkeypatch):
+        monkeypatch.setattr(vp.sys, "platform", "win32")
+        monkeypatch.delenv("VOACAP_ITSHFBC", raising=False)
+        assert vp.default_itshfbc_dir() == r"C:\itshfbc"
+
+
+class TestBuildEngineCommand:
+    """voacapw.exe's CLI has no equivalent for voacapl-specific flags like
+    --run-dir/--absorption-mode; passing them should fail loudly rather
+    than silently ignoring the flag on Windows."""
+
+    class Args:
+        def __init__(self, run_dir=None, absorption_mode=None):
+            self.run_dir = run_dir
+            self.absorption_mode = absorption_mode
+
+    def test_voacapl_command_shape(self):
+        cmd = vp.build_engine_command(
+            "/bin/voacapl", "voacapl", "/itshfbc", "/itshfbc/run",
+            "in.dat", "out.dat", self.Args())
+        assert cmd == ["/bin/voacapl", "-s", "/itshfbc", "in.dat", "out.dat"]
+
+    def test_voacapl_command_with_run_dir_and_absorption_mode(self):
+        cmd = vp.build_engine_command(
+            "/bin/voacapl", "voacapl", "/itshfbc", "/other/run",
+            "in.dat", "out.dat", self.Args(run_dir="/other/run", absorption_mode="W"))
+        assert cmd == [
+            "/bin/voacapl", "-s", "--run-dir=/other/run", "--absorption-mode=W",
+            "/itshfbc", "in.dat", "out.dat",
+        ]
+
+    def test_voacapw_command_shape(self):
+        cmd = vp.build_engine_command(
+            r"C:\itshfbc\bin_win\voacapw.exe", "voacapw", r"C:\itshfbc", r"C:\itshfbc\run",
+            "in.dat", "out.dat", self.Args())
+        assert cmd == [r"C:\itshfbc\bin_win\voacapw.exe", "silent", r"C:\itshfbc", "in.dat", "out.dat"]
+
+    def test_voacapw_rejects_run_dir_override(self):
+        with pytest.raises(ValueError, match="--run-dir"):
+            vp.build_engine_command(
+                "voacapw.exe", "voacapw", r"C:\itshfbc", r"C:\other",
+                "in.dat", "out.dat", self.Args(run_dir=r"C:\other"))
+
+    def test_voacapw_rejects_absorption_mode_override(self):
+        with pytest.raises(ValueError, match="--absorption-mode"):
+            vp.build_engine_command(
+                "voacapw.exe", "voacapw", r"C:\itshfbc", r"C:\itshfbc\run",
+                "in.dat", "out.dat", self.Args(absorption_mode="W"))
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))
