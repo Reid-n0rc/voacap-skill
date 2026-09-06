@@ -51,20 +51,42 @@ try {
     $InstallerPath = Join-Path $TempDir "itshfbc-installer.exe"
     $LogPath = Join-Path $TempDir "install.log"
 
-    Write-Host "Downloading itshfbc installer from $InstallerUrl ..."
     # A real browser User-Agent, in case the mirror filters on it: PowerShell's
     # default WinHTTP-style UA is a common signal for naive bot-blocking.
-    Invoke-WebRequest -Uri $InstallerUrl -OutFile $InstallerPath -UseBasicParsing `
-        -UserAgent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) voacap-skill-installer"
+    # The host also fronts downloads with a "One moment, please..." JS-reload
+    # interstitial for some client IPs (seen from GitHub-hosted CI runners);
+    # it sets a cookie and expects a reload a few seconds later, so retry a
+    # few times with the same cookie jar and a short delay instead of failing
+    # on the first non-MZ response.
+    $session = $null
+    $maxAttempts = 4
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+        Write-Host "Downloading itshfbc installer from $InstallerUrl (attempt $attempt/$maxAttempts) ..."
+        $params = @{
+            Uri            = $InstallerUrl
+            OutFile        = $InstallerPath
+            UseBasicParsing = $true
+            UserAgent      = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) voacap-skill-installer"
+        }
+        if ($session) { $params.WebSession = $session } else { $params.SessionVariable = "session" }
+        Invoke-WebRequest @params
+        if (-not $session) { $session = Get-Variable -Name session -ValueOnly }
 
-    $bytes = [System.IO.File]::ReadAllBytes($InstallerPath)
-    Write-Host "Downloaded $($bytes.Length) bytes."
-    $headerText = -join ($bytes[0..1] | ForEach-Object { [char]$_ })
-    if ($headerText -ne "MZ") {
+        $bytes = [System.IO.File]::ReadAllBytes($InstallerPath)
+        Write-Host "Downloaded $($bytes.Length) bytes."
+        $headerText = -join ($bytes[0..1] | ForEach-Object { [char]$_ })
+        if ($headerText -eq "MZ") {
+            break
+        }
+
         $previewLen = [Math]::Min(500, $bytes.Length)
         $preview = [System.Text.Encoding]::ASCII.GetString($bytes, 0, $previewLen)
-        Write-Error "Downloaded file does not look like a Windows executable (expected 'MZ' header, got '$headerText'), $($bytes.Length) bytes. First bytes:`n$preview"
-        exit 1
+        if ($attempt -eq $maxAttempts) {
+            Write-Error "Downloaded file does not look like a Windows executable (expected 'MZ' header, got '$headerText'), $($bytes.Length) bytes after $maxAttempts attempts. First bytes:`n$preview"
+            exit 1
+        }
+        Write-Host "Got a non-executable response (looks like an interstitial page); waiting 6s and retrying...`n$preview"
+        Start-Sleep -Seconds 6
     }
 
     # Invoke-WebRequest marks the file with the Zone.Identifier
