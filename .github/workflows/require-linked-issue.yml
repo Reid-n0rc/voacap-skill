@@ -1,0 +1,56 @@
+name: "Require linked issue"
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check-linked-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR for linked issue
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (!pr) core.setFailed("No pull_request found in payload.");
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const number = pr.number;
+
+            // Query for issues that the PR will close (e.g. "Fixes #123")
+            const { repository } = await github.graphql(
+              `query($owner:String!, $repo:String!, $number:Int!) {
+                repository(owner:$owner, name:$repo) {
+                  pullRequest(number:$number) {
+                    closingIssuesReferences(first: 1) {
+                      totalCount
+                    }
+                  }
+                }
+              }`,
+              { owner, repo, number }
+            );
+
+            const total = repository.pullRequest.closingIssuesReferences.totalCount;
+            if (total > 0) {
+              core.info("PR references a closing issue.");
+              return;
+            }
+
+            // Also accept plain issue references in the PR body like "#123" or full issue URLs
+            const body = pr.body || "";
+            const issueRegex = /(^|\s)#\d+\b/;
+            const urlRegex = new RegExp(`https://github.com/${owner}/${repo}/issues/\\d+`);
+            const shortRefRegex = new RegExp(`${owner}/${repo}#\\d+`);
+
+            if (issueRegex.test(body) || urlRegex.test(body) || shortRefRegex.test(body)) {
+              core.info("PR body contains an issue reference.");
+              return;
+            }
+
+            core.setFailed("This pull request must reference at least one GitHub issue (e.g. 'Fixes #123' or 'Related to #123').");
