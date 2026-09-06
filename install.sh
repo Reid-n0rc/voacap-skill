@@ -45,7 +45,7 @@ fi
 
 mkdir -p "$SKILLS_DIR"
 rm -rf "$DEST"
-cp -R "$TMP_DIR/repo/.claude/skills/voacap" "$DEST"
+cp -R "$TMP_DIR/repo/skills/voacap" "$DEST"
 
 echo "Installed skill to $DEST"
 echo "Building voacapl engine..."

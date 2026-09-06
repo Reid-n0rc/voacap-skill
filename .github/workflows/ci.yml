@@ -62,20 +62,25 @@ jobs:
           python -m pip install --upgrade pip
           pip install pylint flake8 mypy black isort
 
+      - name: Validate plugin manifests
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude plugin validate .
+
       - name: Black (code formatting check)
-        run: black --check .claude/skills/voacap/scripts/ || true
+        run: black --check skills/voacap/scripts/ || true
 
       - name: isort (import sorting check)
-        run: isort --check-only .claude/skills/voacap/scripts/ || true
+        run: isort --check-only skills/voacap/scripts/ || true
 
       - name: Flake8
-        run: flake8 .claude/skills/voacap/scripts/ --max-line-length=120 || true
+        run: flake8 skills/voacap/scripts/ --max-line-length=120 || true
 
       - name: Pylint
-        run: pylint .claude/skills/voacap/scripts/*.py --disable=too-many-locals,too-many-branches,consider-using-f-string --exit-zero || true
+        run: pylint skills/voacap/scripts/*.py --disable=too-many-locals,too-many-branches,consider-using-f-string --exit-zero || true
 
       - name: MyPy (type checking)
-        run: mypy .claude/skills/voacap/scripts/ --ignore-missing-imports --no-error-summary || true
+        run: mypy skills/voacap/scripts/ --ignore-missing-imports --no-error-summary || true
 
       - name: ShellCheck
         uses: ludeeus/action-shellcheck@master
@@ -102,11 +107,11 @@ jobs:
           pip install pytest pytest-cov
 
       - name: Create tests directory if needed
-        run: mkdir -p .claude/skills/voacap/tests
+        run: mkdir -p skills/voacap/tests
 
       - name: Run unit tests
         run: |
-          python -m pytest .claude/skills/voacap/tests/ -v --tb=short 2>/dev/null || echo "No unit tests found (yet)"
+          python -m pytest skills/voacap/tests/ -v --tb=short 2>/dev/null || echo "No unit tests found (yet)"
 
   integration-tests:
     name: Integration tests against voacapl
@@ -136,16 +141,16 @@ jobs:
           echo "Resolved voacapl version: $TAG"
 
       - name: Build voacapl
-        run: .claude/skills/voacap/scripts/setup.sh --release "${{ steps.voacapl.outputs.tag }}"
+        run: skills/voacap/scripts/setup.sh --release "${{ steps.voacapl.outputs.tag }}"
 
       - name: Run smoke tests
-        run: .claude/skills/voacap/scripts/run_tests.sh
+        run: skills/voacap/scripts/run_tests.sh
 
       - name: Run extended integration tests
         run: |
           set -e
           echo "=== Extended Integration Tests ==="
-          SCRIPT_DIR=".claude/skills/voacap/scripts"
+          SCRIPT_DIR="skills/voacap/scripts"
           
           # Test with different parameters
           echo "Testing different SSN values..."
