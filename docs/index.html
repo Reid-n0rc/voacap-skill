@@ -56,6 +56,25 @@
   code { background: var(--code-bg); padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.9em; }
   pre code { background: none; padding: 0; }
 
+  .code-block { position: relative; }
+  .code-block pre { padding-right: 3.6rem; margin: 0; }
+  .copy-btn {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ink-dim);
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.3em 0.7em;
+    cursor: pointer;
+  }
+  .copy-btn:hover { color: var(--ink); }
+  .copy-btn.copied { color: var(--dial); border-color: var(--dial); }
+
   header {
     padding: 4.5rem 1.5rem 3.5rem;
     text-align: center;
@@ -302,8 +321,11 @@
     You'll need <a href="https://claude.com/claude-code">Claude Code</a>.
     Inside a session, run:
   </p>
-  <pre><code>/plugin marketplace add Reid-n0rc/voacap-skill
+  <div class="code-block">
+    <pre><code>/plugin marketplace add Reid-n0rc/voacap-skill
 /plugin install voacap</code></pre>
+    <button class="copy-btn" type="button" aria-label="Copy install commands">Copy</button>
+  </div>
   <p>That's it &mdash; VOACAP builds itself the first time you use it. A
   manual install (no plugin manager) is also available &mdash; see the
   <a href="https://github.com/Reid-n0rc/voacap-skill#readme">README</a>.</p>
@@ -386,6 +408,36 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js" integrity="sha384-+VfUPEb0PdtChMwmBcBmykRMDd+v6D/oFmB3rZM/puCMDYcIvF968OimRh4KQY9a" crossorigin="anonymous"></script>
 <script>
+(function () {
+  document.querySelectorAll(".copy-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var pre = btn.parentElement.querySelector("pre");
+      var text = pre.textContent;
+      var done = function () {
+        var original = btn.textContent;
+        btn.textContent = "Copied";
+        btn.classList.add("copied");
+        setTimeout(function () {
+          btn.textContent = original;
+          btn.classList.remove("copied");
+        }, 1500);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function () {});
+      } else {
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    });
+  });
+})();
+
 (function () {
   var REPO = "Reid-n0rc/voacap-skill";
 
