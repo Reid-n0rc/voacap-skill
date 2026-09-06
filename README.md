@@ -16,15 +16,27 @@ usage.
 
 ## Quick start
 
+Install as a personal Claude Code skill with one command (works from inside
+a Claude Code session, or any shell). It installs build dependencies
+(macOS/Debian/Ubuntu), builds `voacapl`, and copies the skill to
+`~/.claude/skills/voacap` so it's available in every project:
+
 ```
-.claude/skills/voacap/scripts/setup.sh
-python3 .claude/skills/voacap/scripts/voacap_predict.py \
+curl -fsSL https://raw.githubusercontent.com/Reid-n0rc/voacap-skill/main/install.sh | sh
+```
+
+Then just ask Claude Code about HF propagation in any project. Or run it
+directly:
+
+```
+python3 ~/.claude/skills/voacap/scripts/voacap_predict.py \
   --tx-name "London" --tx-lat 51.5 --tx-lon -0.13 \
   --rx-name "New York" --rx-lat 40.7 --rx-lon -74.0 \
   --month 9 --ssn 60 --freqs 7.1 14.2 21.2
 ```
 
-Requires `git`, `gfortran`, `automake`, and `autoreconf`.
+Alternatively, clone this repo and use the skill from `.claude/skills/voacap/`
+directly (see `.claude/skills/voacap/scripts/setup.sh`).
 
 ## Development
 

@@ -299,36 +299,26 @@
   <h2><span class="num">02</span> Installing it</h2>
   <p>
     You'll need <a href="https://claude.com/claude-code">Claude Code</a>
-    installed, plus a Fortran toolchain to build the VOACAP engine itself
-    (voacapl is real, decades-old Fortran under the hood &mdash; that's a
-    feature, not a bug).
+    installed. Run this one command &mdash; from inside a Claude Code
+    session, or any shell:
   </p>
-  <ol class="steps">
-    <li>
-      <h3>Install build dependencies</h3>
-      <p>macOS (Homebrew):</p>
-      <pre><code>brew install gcc automake autoconf libtool</code></pre>
-      <p>Debian / Ubuntu:</p>
-      <pre><code>sudo apt-get install gfortran automake autoconf libtool m4 pkg-config</code></pre>
-    </li>
-    <li>
-      <h3>Clone this repo</h3>
-      <pre><code>git clone https://github.com/Reid-n0rc/voacap-skill.git
-cd voacap-skill</code></pre>
-    </li>
-    <li>
-      <h3>Run setup once</h3>
-      <p>This clones and builds <code>voacapl</code> and initializes its
-      <code>~/itshfbc</code> data directory. It's safe to re-run any time
-      &mdash; already-done steps are skipped.</p>
-      <pre><code>.claude/skills/voacap/scripts/setup.sh</code></pre>
-    </li>
-    <li>
-      <h3>Open the folder in Claude Code</h3>
-      <p>That's it &mdash; the skill auto-loads. Just start asking about
-      propagation.</p>
-    </li>
-  </ol>
+  <pre><code>curl -fsSL https://raw.githubusercontent.com/Reid-n0rc/voacap-skill/main/install.sh | sh</code></pre>
+  <p>
+    It installs the Fortran toolchain needed to build the VOACAP engine
+    (voacapl is real, decades-old Fortran under the hood &mdash; that's a
+    feature, not a bug) via Homebrew or apt, builds <code>voacapl</code>,
+    initializes its <code>~/itshfbc</code> data directory, and copies the
+    skill to <code>~/.claude/skills/voacap</code> so it's available in
+    every Claude Code project &mdash; no repo clone needed. Safe to re-run
+    any time; already-done steps are skipped.
+  </p>
+  <p>
+    That's it &mdash; open Claude Code anywhere and start asking about
+    propagation. Prefer to inspect the source first, or hack on the skill
+    itself? Clone <a href="https://github.com/Reid-n0rc/voacap-skill">this
+    repo</a> and run <code>.claude/skills/voacap/scripts/setup.sh</code>
+    directly instead.
+  </p>
 </section>
 
 <section id="use">
