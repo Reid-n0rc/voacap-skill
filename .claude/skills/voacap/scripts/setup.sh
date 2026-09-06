@@ -28,8 +28,9 @@ cd "$REPO_ROOT"
 if [ "$RELEASE" = "latest" ]; then
     echo "Looking up latest $UPSTREAM_OWNER_REPO release..."
     if command -v gh >/dev/null 2>&1; then
-        RELEASE=$(gh api "repos/$UPSTREAM_OWNER_REPO/releases/latest" --jq .tag_name)
-    else
+        RELEASE=$(gh api "repos/$UPSTREAM_OWNER_REPO/releases/latest" --jq .tag_name 2>/dev/null || true)
+    fi
+    if [ -z "$RELEASE" ] || [ "$RELEASE" = "latest" ]; then
         RELEASE=$(curl -fsSL "https://api.github.com/repos/$UPSTREAM_OWNER_REPO/releases/latest" \
             | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
     fi
