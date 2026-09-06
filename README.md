@@ -89,10 +89,13 @@ path is checked daily too (`.github/workflows/check-windows-engine.yml`).
 ## License
 
 This repo's own code is [MIT licensed](LICENSE). It doesn't vendor any
-third-party engine source or binaries (`voacapl` is cloned/built on demand,
-never committed; the Windows engine installer is downloaded, never
-committed) &mdash; both engines wrap NTIA/ITS VOACAP, a U.S. government
-work not subject to copyright, per
+third-party engine source in git (`voacapl` is cloned/built on demand,
+never committed) &mdash; both engines wrap NTIA/ITS VOACAP, a U.S.
+government work not subject to copyright, per
 [jawatson/voacapl](https://github.com/jawatson/voacapl)'s and
 [greg-hand.com](https://www.greg-hand.com/hfwin32.html)'s own licensing
-notices.
+notices. The Windows engine installer is downloaded by `setup.ps1`, by
+default from a [GitHub Release mirror](https://github.com/Reid-n0rc/voacap-skill/releases/tag/itshfbc-mirror-1)
+in this repo (greg-hand.com blocks downloads from many datacenter/CI IP
+ranges), verified by SHA256; pass a different `-InstallerUrl` to use the
+original source instead.

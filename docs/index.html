@@ -299,38 +299,14 @@
 <section id="install">
   <h2><span class="num">02</span> Installing it</h2>
   <p>
-    You'll need <a href="https://claude.com/claude-code">Claude Code</a>
-    installed. This repo is a Claude Code plugin &mdash; from inside a
-    Claude Code session, run:
+    You'll need <a href="https://claude.com/claude-code">Claude Code</a>.
+    Inside a session, run:
   </p>
   <pre><code>/plugin marketplace add Reid-n0rc/voacap-skill
 /plugin install voacap</code></pre>
-  <p>
-    That's it. The plugin's <code>SessionStart</code> hook builds the
-    VOACAP engine automatically the first time you start a session with
-    it enabled: on macOS/Linux it installs the Fortran toolchain needed
-    to build <code>voacapl</code> (voacapl is real, decades-old Fortran
-    under the hood &mdash; that's a feature, not a bug) via Homebrew or
-    apt and builds it; on Windows it installs the prebuilt native
-    NTIA/ITS Windows VOACAP engine instead. Either way there's no
-    separate build step to run by hand, and it's safe across sessions
-    &mdash; already-done steps are skipped.
-  </p>
-  <p>
-    Prefer not to use the plugin manager? <code>install.sh</code> /
-    <code>install.ps1</code> do the same work by hand and copy the skill
-    to <code>~/.claude/skills/voacap</code> instead:
-  </p>
-  <pre><code>curl -fsSL https://raw.githubusercontent.com/Reid-n0rc/voacap-skill/main/install.sh | sh</code></pre>
-  <pre><code>irm https://raw.githubusercontent.com/Reid-n0rc/voacap-skill/main/install.ps1 | iex</code></pre>
-  <p>
-    CI runs both scripts end-to-end, dependency install included, on
-    macOS, Linux, and Windows runners for every change to this repo.
-    Prefer to inspect the source first, or hack on the skill itself?
-    Clone <a href="https://github.com/Reid-n0rc/voacap-skill">this
-    repo</a> and run <code>skills/voacap/scripts/setup.sh</code>
-    (or, on Windows, <code>setup.ps1</code>) directly instead.
-  </p>
+  <p>That's it &mdash; VOACAP builds itself the first time you use it. A
+  manual install (no plugin manager) is also available &mdash; see the
+  <a href="https://github.com/Reid-n0rc/voacap-skill#readme">README</a>.</p>
 </section>
 
 <section id="use">
@@ -342,20 +318,12 @@
     missing, like an up-to-date sunspot number.
   </p>
   <p>
-    Prefer the command line? The skill is really a thin, well-documented
-    wrapper around one script, and you can run it directly:
+    Under the hood it's a thin wrapper around one script that prints one
+    row per UTC hour, with the best-performing frequency for that hour
+    and the REL/SNR for every frequency you tried. Full flag reference is
+    below in <a href="#reference">Section 5</a>, pulled straight from the
+    skill's own docs &mdash; it can't drift out of date.
   </p>
-  <pre><code>python3 skills/voacap/scripts/voacap_predict.py \
-  --tx-name "London" --tx-lat 51.5 --tx-lon -0.13 \
-  --rx-name "New York" --rx-lat 40.7 --rx-lon -74.0 \
-  --month 9 --ssn 60 \
-  --freqs 7.1 14.2 21.2</code></pre>
-  <p>That prints one row per UTC hour, with the best-performing frequency
-  for that hour and the REL/SNR for every frequency you tried. Add
-  <code>--json</code> for machine-readable output.</p>
-  <p>Full flag reference is below in <a href="#reference">Section 5</a>,
-  pulled straight from the skill's own docs &mdash; it can't drift out of
-  date.</p>
 </section>
 
 <section id="examples">
