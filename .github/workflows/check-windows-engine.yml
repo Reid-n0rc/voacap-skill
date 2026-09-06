@@ -1,0 +1,98 @@
+name: Check Windows VOACAP engine
+
+on:
+  schedule:
+    - cron: "42 6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  ISSUE_ASSIGNEE: Reid-n0rc
+  ISSUE_LABEL: windows-engine-regression
+
+jobs:
+  check:
+    # Unlike check-upstream-release.yml, there's no versioned "latest
+    # release" to gate on here: setup.ps1 downloads a pinned installer
+    # snapshot from a personal mirror (greg-hand.com), not a release feed.
+    # So this just re-runs the full install -> engine -> prediction path
+    # daily against main, to catch the mirror moving/changing or the
+    # installer's silent-install behavior breaking -- things a
+    # push/PR-triggered CI run would only notice if someone happened to
+    # touch Windows-relevant code that day.
+    runs-on: windows-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run install.ps1 against main
+        id: install
+        continue-on-error: true
+        env:
+          VOACAP_SKILL_REPO_URL: ${{ github.workspace }}
+        run: .\install.ps1
+
+      - name: Run a prediction against the installed skill
+        id: predict
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        run: |
+          python "$env:USERPROFILE\.claude\skills\voacap\scripts\voacap_predict.py" `
+            --tx-name "London" --tx-lat 51.5 --tx-lon -0.13 `
+            --rx-name "New York" --rx-lat 40.7 --rx-lon -74.0 `
+            --month 9 --ssn 60 --freqs 7.1 14.2 21.2 --json > predict.json
+          python -c "
+          import json
+          data = json.load(open('predict.json'))
+          assert len(data['hours']) == 24, data
+          print('OK: produced a valid 24-hour prediction')
+          "
+
+      - name: Decide whether this run failed
+        id: outcome
+        run: |
+          if ("${{ steps.install.outcome }}" -eq "success" -and "${{ steps.predict.outcome }}" -eq "success") {
+            "failed=false" >> $env:GITHUB_OUTPUT
+          } else {
+            "failed=true" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Check for an existing open issue
+        id: existing
+        if: steps.outcome.outputs.failed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $issues = gh issue list --repo $env:GITHUB_REPOSITORY --label $env:ISSUE_LABEL --state open --json number | ConvertFrom-Json
+          "count=$($issues.Count)" >> $env:GITHUB_OUTPUT
+
+      - name: File issue on failure
+        if: steps.outcome.outputs.failed == 'true' && steps.existing.outputs.count == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          @"
+          The daily Windows-engine check found that the one-command installer / native VOACAP Windows engine smoke test fails against main.
+
+          Run: $env:RUN_URL
+
+          This pins a fixed installer snapshot from https://www.greg-hand.com/versions/ (see setup.ps1's `-InstallerUrl` default) rather than tracking a versioned release feed, so a failure here most likely means that mirror moved/changed rather than an upstream code change breaking compatibility. Check that the pinned download URL still resolves and returns the same installer, and that its silent-install behavior (see setup.ps1) is unchanged.
+          "@ | Out-File -FilePath issue-body.md -Encoding utf8
+
+          gh issue create `
+            --repo $env:GITHUB_REPOSITORY `
+            --title "Windows VOACAP engine smoke test failing" `
+            --assignee $env:ISSUE_ASSIGNEE `
+            --label $env:ISSUE_LABEL `
+            --body-file issue-body.md
