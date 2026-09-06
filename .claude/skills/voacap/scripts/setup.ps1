@@ -54,6 +54,15 @@ try {
     Write-Host "Downloading itshfbc installer from $InstallerUrl ..."
     Invoke-WebRequest -Uri $InstallerUrl -OutFile $InstallerPath -UseBasicParsing
 
+    # Invoke-WebRequest marks the file with the Zone.Identifier
+    # "downloaded from the internet" ADS. Windows Defender SmartScreen's
+    # cloud reputation check on that mark-of-the-web is flaky for an old,
+    # unsigned freeware installer with no reputation history -- it can
+    # silently block execution ("the file or directory is corrupted and
+    # unreadable") nondeterministically. Unblock-File strips the mark
+    # before we try to run it.
+    Unblock-File -Path $InstallerPath
+
     Write-Host "Installing to $ItshfbcDir (silent) ..."
     # Tarma InstallMate 9 Setup.exe command line: /install:<dir> forces
     # installer mode into a specific directory, /q1 is silent (progress box
