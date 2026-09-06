@@ -2,14 +2,17 @@
 
 A Claude Code skill for running HF (shortwave) radio propagation
 predictions using [VOACAP](https://www.voacap.com/), via the
-[voacapl](https://github.com/jawatson/voacapl) Linux/GFortran port.
+[voacapl](https://github.com/jawatson/voacapl) Linux/GFortran port on
+macOS/Linux, or the native NTIA/ITS Windows VOACAP engine on Windows.
 
 **[reid-n0rc.github.io/voacap-skill](https://reid-n0rc.github.io/voacap-skill/)**
 &mdash; what it is, how to install it, and fun things to try.
 
-The skill lives in `.claude/skills/voacap/`. It clones and builds
-`voacapl` on demand (see `setup.sh`) rather than vendoring the engine's
-source in this repo, so it stays in sync with upstream.
+The skill lives in `.claude/skills/voacap/`. On macOS/Linux it clones and
+builds `voacapl` on demand (see `setup.sh`) rather than vendoring the
+engine's source in this repo, so it stays in sync with upstream; on
+Windows, `setup.ps1` installs a prebuilt native engine instead (no source
+build).
 
 See [`.claude/skills/voacap/SKILL.md`](.claude/skills/voacap/SKILL.md) for
 usage.
@@ -47,11 +50,13 @@ python3 ~/.claude/skills/voacap/scripts/voacap_predict.py \
 ```
 
 Alternatively, clone this repo and use the skill from `.claude/skills/voacap/`
-directly (see `.claude/skills/voacap/scripts/setup.sh`).
+directly (see `.claude/skills/voacap/scripts/setup.sh`, or `setup.ps1` on
+Windows).
 
 ## Development
 
 See [CONTRIBUTING.md](CONTRIBUTING.md): work happens on `dev`/feature
-branches, `main` is PR-only and CI-gated, and the skill tracks the latest
+branches, `main` is PR-only and CI-gated, the skill tracks the latest
 `jawatson/voacapl` release (checked daily; see
-`.github/workflows/check-upstream-release.yml`).
+`.github/workflows/check-upstream-release.yml`), and the Windows install
+path is checked daily too (`.github/workflows/check-windows-engine.yml`).
