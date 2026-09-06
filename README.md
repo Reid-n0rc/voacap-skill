@@ -60,3 +60,14 @@ branches, `main` is PR-only and CI-gated, the skill tracks the latest
 `jawatson/voacapl` release (checked daily; see
 `.github/workflows/check-upstream-release.yml`), and the Windows install
 path is checked daily too (`.github/workflows/check-windows-engine.yml`).
+
+## License
+
+This repo's own code is [MIT licensed](LICENSE). It doesn't vendor any
+third-party engine source or binaries (`voacapl` is cloned/built on demand,
+never committed; the Windows engine installer is downloaded, never
+committed) &mdash; both engines wrap NTIA/ITS VOACAP, a U.S. government
+work not subject to copyright, per
+[jawatson/voacapl](https://github.com/jawatson/voacapl)'s and
+[greg-hand.com](https://www.greg-hand.com/hfwin32.html)'s own licensing
+notices.
