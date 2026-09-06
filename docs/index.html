@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOACAP Skill &mdash; HF Propagation for Claude Code</title>
+<meta name="description" content="Ask Claude what band to run tonight. A Claude Code skill that runs real VOACAP propagation predictions for ham radio operators.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%A1%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f7f5f0;
+    --bg-alt: #ffffff;
+    --ink: #1c1a17;
+    --ink-dim: #55504a;
+    --accent: #b5541e;
+    --accent-ink: #ffffff;
+    --dial: #3a6b4f;
+    --border: #e2ddd2;
+    --code-bg: #efe9dc;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+    --font-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16140f;
+      --bg-alt: #201d17;
+      --ink: #ece7dc;
+      --ink-dim: #b3ac9e;
+      --accent: #e08a4f;
+      --accent-ink: #16140f;
+      --dial: #7fbf9a;
+      --border: #35311f;
+      --code-bg: #2a261c;
+      --shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    line-height: 1.55;
+  }
+  a { color: var(--accent); }
+  code, pre, .mono { font-family: var(--font-mono); }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 0.88rem;
+  }
+  code { background: var(--code-bg); padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.9em; }
+  pre code { background: none; padding: 0; }
+
+  header {
+    padding: 4.5rem 1.5rem 3.5rem;
+    text-align: center;
+    background:
+      radial-gradient(ellipse at top, color-mix(in srgb, var(--dial) 12%, transparent), transparent 60%),
+      var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  header .eyebrow {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--dial);
+    border: 1px solid var(--dial);
+    border-radius: 999px;
+    padding: 0.25em 0.9em;
+    margin-bottom: 1.4rem;
+  }
+  header h1 {
+    font-size: clamp(1.9rem, 4.5vw, 3rem);
+    margin: 0 0 0.6rem;
+    letter-spacing: -0.01em;
+  }
+  header h1 .hl { color: var(--accent); }
+  header p.tag {
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    color: var(--ink-dim);
+    max-width: 42em;
+    margin: 0 auto 2rem;
+  }
+  .cta-row { display: flex; gap: 0.8rem; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.7em 1.4em;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 0.95rem;
+    border: 1px solid var(--border);
+  }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.ghost { color: var(--ink); background: var(--bg-alt); }
+
+  main { max-width: 880px; margin: 0 auto; padding: 0 1.5rem; }
+  section { padding: 3.2rem 0; border-bottom: 1px solid var(--border); }
+  section:last-of-type { border-bottom: none; }
+  h2 {
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+  }
+  h2 .num { font-family: var(--font-mono); color: var(--accent); font-size: 0.85em; }
+  h3 { font-size: 1.1rem; margin-top: 2rem; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+  .card {
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem 1.3rem;
+    box-shadow: var(--shadow);
+  }
+  .card h3 { margin: 0 0 0.4rem; font-size: 1rem; }
+  .card p { margin: 0; color: var(--ink-dim); font-size: 0.92rem; }
+
+  .example {
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.3rem;
+    margin-top: 1.1rem;
+    box-shadow: var(--shadow);
+  }
+  .example .prompt {
+    font-family: var(--font-mono);
+    font-size: 0.92rem;
+    color: var(--dial);
+  }
+  .example .prompt::before { content: "\201C"; }
+  .example .prompt::after { content: "\201D"; }
+  .example .why { margin: 0.5rem 0 0; color: var(--ink-dim); font-size: 0.92rem; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 0.5em 0.7em; border-bottom: 1px solid var(--border); }
+  th { color: var(--ink-dim); font-weight: 600; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--bg-alt);
+    padding: 0.9rem 1.1rem;
+    border-radius: 0 8px 8px 0;
+    margin-top: 1.2rem;
+    font-size: 0.92rem;
+  }
+
+  .steps { counter-reset: step; list-style: none; padding: 0; margin: 1.5rem 0 0; }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 2.6em;
+    margin-bottom: 1.4rem;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0; top: 0;
+    width: 1.8em; height: 1.8em;
+    border-radius: 50%;
+    background: var(--dial);
+    color: var(--bg);
+    font-family: var(--font-mono);
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem;
+  }
+  .steps h3 { margin: 0 0 0.4rem; }
+
+  #live-status {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--ink-dim);
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+  }
+  #live-status .dot {
+    display: inline-block; width: 0.6em; height: 0.6em; border-radius: 50%;
+    background: var(--dial); margin-right: 0.4em;
+  }
+
+  #reference summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.9rem 0;
+  }
+  #reference-body {
+    font-size: 0.92rem;
+  }
+  #reference-body h1 { font-size: 1.2rem; }
+  #reference-body h2 { font-size: 1.05rem; display: block; }
+  #reference-body code { word-break: break-word; }
+
+  footer {
+    text-align: center;
+    padding: 3rem 1.5rem 4rem;
+    color: var(--ink-dim);
+    font-size: 0.88rem;
+  }
+  footer a { color: var(--ink-dim); }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="eyebrow">73 &middot; de Claude Code</span>
+  <h1>Ask Claude what band<br>to run <span class="hl">tonight</span>.</h1>
+  <p class="tag">
+    <strong>voacap-skill</strong> wires real VOACAP ionospheric propagation
+    predictions into your terminal, so you can ask in plain English
+    &mdash; and get a real, physics-based answer about MUF, reliability
+    and SNR, band by band, hour by hour.
+  </p>
+  <div class="cta-row">
+    <a class="btn primary" href="#install">Install it</a>
+    <a class="btn ghost" href="https://github.com/Reid-n0rc/voacap-skill">View on GitHub</a>
+  </div>
+  <div id="live-status">
+    <span><span class="dot"></span><span id="release-text">checking latest release&hellip;</span></span>
+    <span id="ci-text"></span>
+  </div>
+</header>
+
+<main>
+
+<section id="what">
+  <h2><span class="num">01</span> What is this thing?</h2>
+  <p>
+    If you've ever used <a href="https://www.voacap.com/">VOACAP</a>,
+    <a href="https://www.voacap.com/hf/">VOACAP Online</a>, or watched a
+    contest DXpedition plan its band schedule, you already know the engine
+    underneath this: it's the same NTIA/ITS point-to-point HF prediction
+    model that's been the industry standard for propagation forecasting
+    since the 1980s. It takes a transmitter location, a receiver location,
+    a month, and a sunspot number, and tells you &mdash; for every hour of
+    the day and every frequency you care about &mdash; how reliable that
+    circuit is likely to be.
+  </p>
+  <p>
+    <strong>voacap-skill</strong> takes that engine (via
+    <a href="https://github.com/jawatson/voacapl">voacapl</a>, the modern
+    Linux/GFortran port) and wires it into
+    <a href="https://claude.com/claude-code">Claude Code</a> as a "skill"
+    &mdash; a capability Claude can reach for on its own. Instead of
+    filling out a web form, you just ask, conversationally, in the same
+    terminal where you're already working:
+  </p>
+  <div class="example">
+    <p class="prompt">What's the best band to reach Tokyo from Columbus, Ohio around 0300Z in October?</p>
+  </div>
+  <p>
+    Claude runs an actual VOACAP prediction in the background and comes
+    back with a real answer &mdash; not a guess, not a canned response,
+    but output from the same math that predicts circuit reliability for
+    professional HF networks.
+  </p>
+  <div class="grid">
+    <div class="card">
+      <h3>REL &mdash; Reliability</h3>
+      <p>The predicted fraction of days in the month your circuit hits the
+      SNR you need. 0.7&ndash;1.0 is a solid, workable circuit; below 0.3
+      and you're fishing.</p>
+    </div>
+    <div class="card">
+      <h3>SNR &mdash; Signal-to-noise</h3>
+      <p>How far your signal is expected to sit above the noise floor, in
+      dB, for the mode/threshold you asked for.</p>
+    </div>
+    <div class="card">
+      <h3>MUF &mdash; Maximum usable freq.</h3>
+      <p>The highest frequency the ionosphere is predicted to support on
+      that path at that hour &mdash; the ceiling you're working under.</p>
+    </div>
+  </div>
+  <div class="callout">
+    <strong>Heads up:</strong> VOACAP is a <em>monthly-median statistical
+    model</em>, not a live space-weather forecast. It answers "what's
+    typical for this month at this sunspot number," not "what will happen
+    at 2140Z today." It also models F-layer (and E-layer) skywave, not
+    Sporadic-E &mdash; so don't blame the skill if 6&nbsp;meters surprises
+    you some June afternoon.
+  </div>
+</section>
+
+<section id="install">
+  <h2><span class="num">02</span> Installing it</h2>
+  <p>
+    You'll need <a href="https://claude.com/claude-code">Claude Code</a>
+    installed, plus a Fortran toolchain to build the VOACAP engine itself
+    (voacapl is real, decades-old Fortran under the hood &mdash; that's a
+    feature, not a bug).
+  </p>
+  <ol class="steps">
+    <li>
+      <h3>Install build dependencies</h3>
+      <p>macOS (Homebrew):</p>
+      <pre><code>brew install gcc automake autoconf libtool</code></pre>
+      <p>Debian / Ubuntu:</p>
+      <pre><code>sudo apt-get install gfortran automake autoconf libtool m4 pkg-config</code></pre>
+    </li>
+    <li>
+      <h3>Clone this repo</h3>
+      <pre><code>git clone https://github.com/Reid-n0rc/voacap-skill.git
+cd voacap-skill</code></pre>
+    </li>
+    <li>
+      <h3>Run setup once</h3>
+      <p>This clones and builds <code>voacapl</code> and initializes its
+      <code>~/itshfbc</code> data directory. It's safe to re-run any time
+      &mdash; already-done steps are skipped.</p>
+      <pre><code>.claude/skills/voacap/scripts/setup.sh</code></pre>
+    </li>
+    <li>
+      <h3>Open the folder in Claude Code</h3>
+      <p>That's it &mdash; the skill auto-loads. Just start asking about
+      propagation.</p>
+    </li>
+  </ol>
+</section>
+
+<section id="use">
+  <h2><span class="num">03</span> Using it</h2>
+  <p>
+    The natural way to use this is to just talk to Claude &mdash; describe
+    your station, your target, and roughly when, and let it figure out the
+    right VOACAP parameters. It'll ask for anything important it's
+    missing, like an up-to-date sunspot number.
+  </p>
+  <p>
+    Prefer the command line? The skill is really a thin, well-documented
+    wrapper around one script, and you can run it directly:
+  </p>
+  <pre><code>python3 .claude/skills/voacap/scripts/voacap_predict.py \
+  --tx-name "London" --tx-lat 51.5 --tx-lon -0.13 \
+  --rx-name "New York" --rx-lat 40.7 --rx-lon -74.0 \
+  --month 9 --ssn 60 \
+  --freqs 7.1 14.2 21.2</code></pre>
+  <p>That prints one row per UTC hour, with the best-performing frequency
+  for that hour and the REL/SNR for every frequency you tried. Add
+  <code>--json</code> for machine-readable output.</p>
+  <p>Full flag reference is below in <a href="#reference">Section 5</a>,
+  pulled straight from the skill's own docs &mdash; it can't drift out of
+  date.</p>
+</section>
+
+<section id="examples">
+  <h2><span class="num">04</span> Fun things to try</h2>
+
+  <div class="example">
+    <p class="prompt">Is 20 meters going to be open to Japan for CQ WW SSB this year? I run 100 watts to a dipole from Seattle.</p>
+    <p class="why">Contest planning: check reliability across the contest window and get an honest read on whether your run band will actually support the path before you build your whole weekend around it.</p>
+  </div>
+
+  <div class="example">
+    <p class="prompt">What's the best band for a grayline QSO between my station in Denver and Cape Town, South Africa?</p>
+    <p class="why">Grayline propagation is a favorite low-band trick &mdash; ask Claude to scan the sunrise/sunset hours and compare 40m, 30m and 20m reliability along the path.</p>
+  </div>
+
+  <div class="example">
+    <p class="prompt">We're planning a DXpedition to a small island. Reachable from EU and NA &mdash; which bands should we run at each UTC hour to work both continents?</p>
+    <p class="why">Run the same TX location against two RX targets side-by-side and build an actual band-by-hour operating schedule, the same way real DXpeditions plan their logs.</p>
+  </div>
+
+  <div class="example">
+    <p class="prompt">For the Tennessee QSO Party this weekend, what's my best band from Chattanooga to reach stations in the Midwest and West Coast at 2100Z?</p>
+    <p class="why">State QSO parties live and die by band changes over a single afternoon &mdash; ask hour-by-hour and know when to move before the pileup tells you.</p>
+  </div>
+
+  <div class="example">
+    <p class="prompt">How much does bumping my power from 100W to 1kW actually change my reliability on 40m at night to the East Coast?</p>
+    <p class="why">A great gut-check before spending money on an amplifier &mdash; run the same circuit twice with <code>--tx-power-kw</code> changed and compare REL side by side.</p>
+  </div>
+
+  <div class="example">
+    <p class="prompt">Given SSN=150 vs SSN=20, how differently does 10 meters behave on a transatlantic path?</p>
+    <p class="why">A quick, concrete feel for where you are in the solar cycle &mdash; run the identical path at both sunspot extremes and watch the high bands come alive (or die).</p>
+  </div>
+</section>
+
+<section id="reference">
+  <h2><span class="num">05</span> Full command reference</h2>
+  <p>This section is fetched live from the skill's own
+  <a href="https://github.com/Reid-n0rc/voacap-skill/blob/main/.claude/skills/voacap/SKILL.md"><code>SKILL.md</code></a>
+  on every page load &mdash; so it always matches whatever is actually on
+  <code>main</code>, even if this page itself hasn't been redeployed.</p>
+  <div id="reference-body">
+    <p><em>Loading current docs from GitHub&hellip;</em></p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <p>
+    voacap-skill is open source &mdash;
+    <a href="https://github.com/Reid-n0rc/voacap-skill">source</a> &middot;
+    <a href="https://github.com/Reid-n0rc/voacap-skill/issues">report an issue</a> &middot;
+    <a href="https://github.com/Reid-n0rc/voacap-skill/releases">releases</a>
+  </p>
+  <p>Built on <a href="https://github.com/jawatson/voacapl">voacapl</a>, a Linux/GFortran port of NTIA/ITS VOACAP. Not affiliated with NTIA, ITS, or VOACAP.com.</p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi" crossorigin="anonymous"></script>
+<script>
+(function () {
+  var REPO = "Reid-n0rc/voacap-skill";
+
+  fetch("https://api.github.com/repos/" + REPO + "/releases/latest")
+    .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+    .then(function (rel) {
+      var el = document.getElementById("release-text");
+      var url = rel.html_url || ("https://github.com/" + REPO + "/releases");
+      el.innerHTML = 'latest release: <a href="' + url + '">' + rel.tag_name + "</a>";
+    })
+    .catch(function () {
+      document.getElementById("release-text").textContent = "no tagged releases yet";
+    });
+
+  fetch("https://api.github.com/repos/" + REPO + "/actions/workflows/ci.yml/runs?branch=main&per_page=1")
+    .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+    .then(function (data) {
+      var run = data.workflow_runs && data.workflow_runs[0];
+      var el = document.getElementById("ci-text");
+      if (!run) { el.textContent = ""; return; }
+      var ok = run.conclusion === "success";
+      el.innerHTML = 'CI on main: <a href="' + run.html_url + '">' + (run.conclusion || run.status) + "</a>";
+      el.style.color = ok ? "var(--dial)" : "var(--accent)";
+    })
+    .catch(function () {});
+
+  fetch("https://raw.githubusercontent.com/" + REPO + "/main/.claude/skills/voacap/SKILL.md")
+    .then(function (r) { if (!r.ok) throw new Error("fetch failed"); return r.text(); })
+    .then(function (md) {
+      var body = document.getElementById("reference-body");
+      if (window.marked) {
+        body.innerHTML = marked.parse(md);
+      } else {
+        var pre = document.createElement("pre");
+        pre.textContent = md;
+        body.innerHTML = "";
+        body.appendChild(pre);
+      }
+    })
+    .catch(function () {
+      document.getElementById("reference-body").innerHTML =
+        '<p><em>Could not load live docs right now &mdash; see ' +
+        '<a href="https://github.com/' + REPO + '/blob/main/.claude/skills/voacap/SKILL.md">SKILL.md on GitHub</a> directly.</em></p>';
+    });
+})();
+</script>
+
+</body>
+</html>

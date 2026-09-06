@@ -4,6 +4,9 @@ A Claude Code skill for running HF (shortwave) radio propagation
 predictions using [VOACAP](https://www.voacap.com/), via the
 [voacapl](https://github.com/jawatson/voacapl) Linux/GFortran port.
 
+**[reid-n0rc.github.io/voacap-skill](https://reid-n0rc.github.io/voacap-skill/)**
+&mdash; what it is, how to install it, and fun things to try.
+
 The skill lives in `.claude/skills/voacap/`. It clones and builds
 `voacapl` on demand (see `setup.sh`) rather than vendoring the engine's
 source in this repo, so it stays in sync with upstream.
