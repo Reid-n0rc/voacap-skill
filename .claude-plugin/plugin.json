@@ -2,7 +2,7 @@
   "name": "voacap",
   "displayName": "VOACAP HF Propagation Predictions",
   "description": "Run HF (shortwave) radio propagation predictions between two locations using the VOACAP engine (voacapl on macOS/Linux, the native NTIA/ITS Windows engine on Windows).",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": {
     "name": "Reid Crowe",
     "email": "reid.crowe@gmail.com"
